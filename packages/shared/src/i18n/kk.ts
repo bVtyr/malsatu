@@ -1,0 +1,38 @@
+import type { ru } from "./ru.js";
+type Dict = { [K in keyof typeof ru]: any };
+export const kk: Dict = {
+  app: { name: "MalSatu", tagline: "Бүкіл Қазақстан бойынша мал, ет және қызметтер" },
+  nav: { home: "Басты бет", search: "Іздеу", create: "Жариялау", chat: "Чаттар", profile: "Профиль", favorites: "Таңдаулылар", admin: "Әкімші" },
+  common: {
+    kzt: "₸", perHead: "бір басына", perKgLive: "тірі салмақтың кг-на", perKgMeat: "кг-на", perLot: "партияға", negotiable: "келісімді",
+    bargain: "саудаласуға болады", heads: ["бас", "бас", "бас"], kg: "кг", km: "км", save: "Сақтау", cancel: "Болдырмау", next: "Әрі қарай", back: "Артқа",
+    publish: "Жариялау", edit: "Өңдеу", delete: "Жою", loading: "Жүктелуде…", nothingFound: "Ештеңе табылмады", more: "Тағы", all: "Барлығы",
+    yes: "Иә", no: "Жоқ", from: "бастап", to: "дейін", search: "Іздеу", filters: "Сүзгілер", apply: "Қолдану", reset: "Тазалау", share: "Бөлісу", call: "Қоңырау шалу", write: "Жазу",
+    offline: "Байланыс жоқ — жоба сақталды, байланыс пайда болғанда автоматты түрде жіберіледі", autoTranslated: "автоматты түрде аударылған", verified: "тексерілген",
+  },
+  auth: { login: "Кіру", phone: "Телефон нөмірі", sendCode: "Код алу", code: "SMS коды", confirm: "Растау", resend: "Қайта жіберу", logout: "Шығу",
+    accountType: "Аккаунт түрі", individual: "Жеке тұлға", ip: "ЖК", kh: "ШҚ / ФҚ", too: "ЖШС", name: "Аты немесе шаруашылық атауы", region: "Аймақ", welcome: "MalSatu-ға қош келдіңіз" },
+  verification: { level0: "Расталмаған", level1: "Телефон расталған", level2: "ЖСН/БСН расталған", level3: "Шаруашылық құжаттары тексерілген", level4: "Шаруашылық тексерілген (видео/барып тексеру)" },
+  home: { nearby: "Сізге жақын", categories: "Санаттар", seasonal: "Маусымдық топтамалар", kurban: "Құрбан айт", sogym: "Соғым", verifiedSellers: "Тексерілген сатушылар", prices: "Қазіргі бағалар", wanted: "Сатып аламын" },
+  listing: {
+    new: "Жаңа хабарландыру", kind: "Не сатасыз?", livestock: "Тірі мал", meat: "Ет және өнім", service: "Қызметтер", wanted: "Сатып аламын (сұраныс)",
+    title: "Тақырып", description: "Сипаттама", voiceInput: "Дауыспен айту", photos: "Фото (кемінде 3)", video: "Видео", takePhoto: "Түсіру", price: "Баға", priceType: "Баға түрі",
+    quantity: "Бас саны", lot: "Партия", single: "Данамен", avgWeight: "Орташа салмақ", weightSpread: "Салмақ ауытқуы", tags: "Сырға нөмірлері (ИНЖ)", docs: "Вет. құжаттар",
+    location: "Орналасқан жері", delivery: "Жеткізу", pickup: "Өзі алып кету", sellerDelivery: "Сатушы жеткізеді", platformCarrier: "Платформа тасымалдаушысы",
+    priceHint: "Аймақтағы 30 күндік орташа баға", yieldCalc: "Сою шығымы калькуляторы", expires: "Белсенді мерзімі", extend: "Ұзарту",
+    status: { draft: "Жоба", pending_moderation: "Модерацияда", active: "Белсенді", rejected: "Қабылданбады", reserved: "Броньдалған", sold: "Сатылды", expired: "Мерзімі өтті", archived: "Мұрағатта", hidden_quarantine: "Жасырылған (карантин)" },
+    riskWarning: "Платформадан тыс жеке карталарға алдын ала төлем аудармаңыз. Қауіпсіз мәміле ақшаңызды қорғайды.",
+    similar: "Ұқсас хабарландырулар", sellerOther: "Сатушының басқа хабарландырулары", distance: "Сізге дейінгі қашықтық", deliveryEstimate: "Жеткізу шамамен",
+    actions: { call: "Қоңырау шалу", chat: "Жазу", offer: "Баға ұсыну", reserve: "Броньдау", escrow: "Қауіпсіз мәміле", vet: "Мал дәрігерінің тексеруі", report: "Шағымдану" },
+    quarantineFlag: "Хабарландыру ветеринариялық шектеу аймағында",
+  },
+  filters: { region: "Аймақ", radius: "Радиус", species: "Түрі", breed: "Тұқымы", sex: "Жынысы", age: "Жасы", weight: "Салмағы", price: "Бағасы", quantity: "Саны", purpose: "Мақсаты",
+    withDocs: "Тек вет. құжаттармен", withTags: "Тек сырғасы барлар", verifiedOnly: "Тек тексерілген сатушылар", halal: "Халал", withDelivery: "Жеткізумен", escrow: "Қауіпсіз мәмілемен", withVideo: "Видеосы бар",
+    sort: "Сұрыптау", sortNew: "Жаңалары", sortCheap: "Арзаны", sortExpensive: "Қымбаты", sortNear: "Жақыны", sortRating: "Рейтинг бойынша", sortPerKg: "Кг бағасы бойынша", map: "Карта", list: "Тізім", saveSearch: "Іздеуді сақтау" },
+  chat: { placeholder: "Хабарлама…", send: "Жіберу", templates: "Үлгілер", fraudWarning: "Назар аударыңыз: әңгімелесуші алдын ала төлем сұрап жатыр немесе бөгде ресурсқа шақырады. Тек қауіпсіз мәміле арқылы төлеңіз.", block: "Бұғаттау", report: "Шағымдану", translate: "Аудару" },
+  offer: { title: "Баға ұсынысы", accept: "Қабылдау", reject: "Қабылдамау", counter: "Қарсы ұсыныс", yourPrice: "Сіздің бағаңыз", pending: "Жауап күтуде", accepted: "Қабылданды", rejected: "Қабылданбады", countered: "Қарсы ұсыныс", expired: "Мерзімі өтті" },
+  deal: { status: { created: "Құрылды", paid: "Төленді", preparing: "Дайындалуда", in_transit: "Жолда", inspection: "Тексеру", confirmed: "Расталды", completed: "Аяқталды", cancelled: "Болдырылмады", disputed: "Дау", refunded: "Қайтарылды", partially_refunded: "Ішінара қайтарылды", released_to_seller: "Сатушының пайдасына" } },
+  moderation: { queue: "Модерация кезегі", approve: "Мақұлдау", reject: "Қабылдамау", reason: "Себебі", comment: "Түсініктеме" },
+  admin: { dashboard: "Басқару тақтасы", users: "Пайдаланушылар", listings: "Хабарландырулар", deals: "Мәмілелер", gmv: "Айналым (GMV)", revenue: "Түсім", regions: "Аймақтар", categories: "Санаттар", quarantine: "Карантин аймақтары", tariffs: "Тарифтер мен комиссиялар", cms: "Контент", audit: "Әрекеттер журналы" },
+  errors: { required: "Міндетті өріс", minPhotos: "Кемінде 3 фото қосыңыз", invalidPhone: "Телефон нөмірі дұрыс емес", otpInvalid: "Код дұрыс емес", otpExpired: "Код мерзімі өтті", rateLimited: "Сұраныстар тым көп, кейінірек қайталаңыз", network: "Байланыс жоқ" },
+};

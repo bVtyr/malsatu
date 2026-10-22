@@ -1,0 +1,24 @@
+{
+  "name": "malsatu",
+  "private": true,
+  "version": "0.1.0",
+  "description": "MalSatu — маркетплейс живого скота, мяса и сопутствующих услуг (Казахстан)",
+  "packageManager": "pnpm@9.12.0",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter ./apps/* dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "db:up": "docker compose -f infra/docker-compose.yml up -d postgres redis minio",
+    "db:migrate": "pnpm --filter @malsatu/api migrate",
+    "db:seed": "pnpm --filter @malsatu/api seed",
+    "db:reset": "pnpm --filter @malsatu/api migrate:reset && pnpm db:migrate && pnpm db:seed"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4",
+    "@types/node": "^22.9.0"
+  }
+}

@@ -1,0 +1,58 @@
+# Локальная инфраструктура MalSatu. Запуск: pnpm db:up  (или docker compose -f infra/docker-compose.yml up -d)
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: malsatu-postgres
+    environment:
+      POSTGRES_USER: malsatu
+      POSTGRES_PASSWORD: malsatu
+      POSTGRES_DB: malsatu
+    ports: ["5432:5432"]
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U malsatu"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: malsatu-redis
+    ports: ["6379:6379"]
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ./data/redis:/data
+
+  minio:
+    image: minio/minio:latest
+    container_name: malsatu-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: malsatu
+      MINIO_ROOT_PASSWORD: malsatu123
+    ports: ["9000:9000", "9001:9001"]
+    volumes:
+      - ./data/minio:/data
+
+  # Полный стек (api + web) — для демо. В разработке удобнее запускать pnpm dev.
+  api:
+    build: { context: .., dockerfile: infra/Dockerfile.api }
+    profiles: ["full"]
+    env_file: ../.env
+    environment:
+      DATABASE_URL: postgres://malsatu:malsatu@postgres:5432/malsatu
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_started }
+    ports: ["4000:4000"]
+
+  web:
+    build: { context: .., dockerfile: infra/Dockerfile.web }
+    profiles: ["full"]
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    depends_on: [api]
+    ports: ["3000:3000"]

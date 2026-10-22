@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MalSatu</title>
+<meta name="description" content="Мал базары в телефоне: живой скот, мясо, согым вскладчину, бараны к Курбан айту. Цены по областям, безопасная сделка с осмотром за 24 часа.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700;800&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../malsatu.css">
+<script>document.documentElement.classList.add('js')</script>
+<style>
+.top { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-height: 64px; padding-inline: var(--gutter); border-bottom: var(--border) solid var(--line); background: var(--paper); position: sticky; top: 0; z-index: 20; }
+.top nav { display: none; gap: var(--s-5); font-weight: 600; }
+@media (min-width: 60em) { .top nav { display: flex; } }
+.hero { background: var(--yellow); border-bottom: var(--border) solid var(--line); padding-block: var(--s-7) var(--s-6); }
+.hero .container { display: grid; gap: var(--s-5); }
+.hero .lead { font-weight: 500; }
+.hero-cta { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.hero-photo { border: var(--border) solid var(--line); border-radius: var(--radius-lg); overflow: hidden; aspect-ratio: 16 / 10; background: var(--surface-2); }
+.hero-photo img { width: 100%; height: 100%; object-fit: cover; }
+@media (min-width: 60em) { .hero .container { grid-template-columns: 1.15fr 1fr; align-items: center; gap: var(--s-7); } .hero { padding-block: var(--s-8); } }
+.facts { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s-2); }
+@media (min-width: 60em) { .facts { grid-template-columns: repeat(4, 1fr); } }
+.fact { border: var(--border) solid var(--line); border-radius: var(--radius); padding: var(--s-4); background: var(--paper); }
+.fact b { display: block; font-family: var(--font-display); font-size: var(--fs-28); font-weight: 700; line-height: 1; }
+.fact span { display: block; font-size: var(--fs-14); color: var(--muted); margin-top: 6px; }
+.prices-grid { display: grid; gap: var(--s-4); }
+@media (min-width: 60em) { .prices-grid { grid-template-columns: 1.1fr 0.9fr; align-items: start; } }
+.calc-form { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
+.calc-form label:first-child { grid-column: span 2; }
+.calc-out { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); margin-top: var(--s-4); }
+.calc-out b { display: block; font-family: var(--font-display); font-size: var(--fs-28); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.calc-out span { display: block; font-size: var(--fs-14); margin-top: 6px; }
+.steps-grid { display: grid; gap: var(--s-2); counter-reset: step; }
+@media (min-width: 60em) { .steps-grid { grid-template-columns: repeat(4, 1fr); } }
+.step { border: var(--border) solid var(--line); border-radius: var(--radius); padding: var(--s-4); background: var(--paper); color: var(--ink); display: grid; gap: 6px; }
+.step b { font-family: var(--font-display); font-size: var(--fs-18); font-weight: 700; }
+.step span { font-size: var(--fs-14); }
+.step .t { font-family: var(--font-display); font-size: var(--fs-28); font-weight: 800; line-height: 1; color: var(--green); }
+.shares { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-2); }
+.share { border-radius: var(--radius); background: var(--yellow); color: var(--ink); padding: var(--s-4); text-align: center; border: var(--border) solid var(--yellow); text-decoration: none; }
+.share b { display: block; font-family: var(--font-display); font-size: var(--fs-36); font-weight: 800; line-height: 1; }
+.share span { display: block; font-size: var(--fs-14); font-weight: 600; margin-top: 4px; }
+.sogym-grid { display: grid; gap: var(--s-5); }
+@media (min-width: 60em) { .sogym-grid { grid-template-columns: 1fr 1fr; align-items: center; } }
+.cards-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s-3); }
+@media (min-width: 60em) { .cards-grid { grid-template-columns: repeat(4, 1fr); } }
+.faq details + details { margin-top: var(--s-2); }
+.faq summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: var(--s-3); align-items: center; padding: var(--s-4); font-weight: 600; min-height: var(--tap); }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; font-family: var(--font-display); font-size: var(--fs-22); flex: 0 0 auto; }
+.faq details[open] summary::after { content: "–"; }
+.faq details p { padding: 0 var(--s-4) var(--s-4); }
+.footer { background: var(--ink); color: var(--paper); padding-block: var(--s-7); }
+.footer .big { font-family: var(--font-display); font-weight: 800; font-size: clamp(2.5rem, 12vw, 8rem); line-height: 0.9; color: var(--yellow); text-transform: uppercase; }
+.footer-grid { display: grid; gap: var(--s-5); margin-top: var(--s-6); }
+@media (min-width: 60em) { .footer-grid { grid-template-columns: 2fr 1fr 1fr; } }
+.footer ul { display: grid; gap: 10px; }
+.footer a { text-decoration: none; }
+.footer .small a { text-decoration: underline; }
+.footer .btn { border-color: var(--yellow); }
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="logo" href="#"><span class="logo-mark" aria-hidden="true">M</span>MalSatu</a>
+  <nav aria-label="Разделы"><a href="#prices">Цены</a><a href="#deal">Безопасная сделка</a><a href="#sogym">Согым</a><a href="#faq">Вопросы</a></nav>
+  <div class="row"><a class="chip" href="#kk" aria-label="Қазақ тілі">ҚАЗ</a><a class="btn btn--sm btn--ink" href="#login">Войти</a></div>
+</header>
+
+<section class="hero">
+  <div class="container wrap">
+    <div class="stack">
+      <h1 class="display lines"><span class="line-mask"><span class="line-in" style="--i:0">Мал</span></span><span class="line-mask"><span class="line-in" style="--i:1">базары</span></span></h1>
+      <p class="lead" data-rise style="--i:0">Скот, мясо и услуги по всему Казахстану. Цены по областям, звонок без раскрытия номера, деньги у платформы до осмотра.</p>
+      <div class="hero-cta" data-rise style="--i:1"><a class="btn btn--ink" href="#new">Подать объявление</a><a class="btn btn--white" href="#prices">Смотреть цены</a></div>
+    </div>
+    <div class="hero-photo"><img src="../img/steppe-herdsman.jpg" width="1920" height="1282" alt="Чабан на лошади с отарой в степи на закате" fetchpriority="high"></div>
+  </div>
+</section>
+
+<div class="ticker" aria-label="Цены сегодня">
+  <div class="ticker-track" id="ticker">
+    <span class="ticker-item">Бык на убой <b>1 300 000 ₸</b></span><span class="ticker-item">Баран едильбаевский <b>92 500 ₸</b></span><span class="ticker-item">Лошадь на согым <b>815 000 ₸</b></span><span class="ticker-item">Баранина, кг <b>3 200 ₸</b></span><span class="ticker-item">Говядина, кг <b>2 900 ₸</b></span><span class="ticker-item">Казы, кг <b>6 500 ₸</b></span><span class="ticker-item">Бычки на откорм, кг <b>2 250 ₸</b></span><span class="ticker-item">Нетель стельная <b>650 000 ₸</b></span>
+  </div>
+</div>
+
+<section class="section wrap container stack-lg" id="categories">
+  <h2 class="h1" data-reveal>Что продают сегодня</h2>
+  <div class="grid-4">
+    <a data-reveal="scale" style="--i:0" class="tile tile--green tile--lg" href="#cattle"><svg class="tile-icon" viewBox="0 0 48 48"><path d="M10 20c-4 0-6-3-5-6 2 1 4 2 7 2M38 20c4 0 6-3 5-6-2 1-4 2-7 2"/><path d="M14 16h20l3 8v8a7 7 0 0 1-7 7H18a7 7 0 0 1-7-7v-8l3-8Z"/><path d="M17 33a7 5 0 0 0 14 0"/></svg><span><span class="tile-title">КРС</span><span class="tile-sub">Ірі қара: быки, коровы, нетели, телята. 412 объявлений</span></span></a>
+    <a data-reveal="scale" style="--i:1" class="tile tile--yellow tile--lg" href="#sheep"><svg class="tile-icon" viewBox="0 0 48 48"><path d="M12 24a6 6 0 0 1 2-11 6 6 0 0 1 11-3 6 6 0 0 1 11 3 6 6 0 0 1 2 11 6 6 0 0 1-3 10H15a6 6 0 0 1-3-10Z"/><path d="M30 22a5 6 0 0 1 10 1v4h-9"/><path d="M18 34v6M30 34v6"/></svg><span><span class="tile-title">МРС</span><span class="tile-sub">Қой-ешкі: бараны, овцематки, ягнята, козы. 980 объявлений</span></span></a>
+    <a data-reveal="scale" style="--i:2" class="tile tile--ink tile--lg" href="#horse"><svg class="tile-icon" viewBox="0 0 48 48"><path d="M10 40V26c0-8 6-14 14-14h4l6-6 2 8 4 4-4 4v4c0 8-5 14-12 14"/><path d="M14 20c-2-1-4-1-6 1M16 40v-8"/></svg><span><span class="tile-title">Лошади</span><span class="tile-sub">Жылқы: на согым, на племя, жеребята. 230 объявлений</span></span></a>
+    <a data-reveal="scale" style="--i:3" class="tile tile--lg" href="#meat"><svg class="tile-icon" viewBox="0 0 48 48"><path d="M14 30c-4-8 2-18 12-18s14 6 12 14-8 12-14 12c-4 0-8-3-10-8Z"/><path d="M20 24a4 4 0 0 1 8 0 4 4 0 0 1-8 0Z"/><path d="M8 40l4-4"/></svg><span><span class="tile-title">Мясо</span><span class="tile-sub">Ет: говядина, баранина, конина, казы, шұжық. 316 объявлений</span></span></a>
+    <a data-reveal="scale" style="--i:4" class="tile" href="#camel"><span class="tile-title">Верблюды и птица</span><span class="tile-sub">Түйе, құс</span></a>
+    <a data-reveal="scale" style="--i:5" class="tile tile--surface" href="#services"><span class="tile-title">Услуги</span><span class="tile-sub">Забой, перевозка, ветеринар, откорм</span></a>
+    <a data-reveal="scale" style="--i:6" class="tile tile--yellow" href="#wanted"><span class="tile-title">Куплю</span><span class="tile-sub">Запросы мясокомбинатов и ресторанов</span></a>
+    <a data-reveal="scale" style="--i:7" class="tile tile--green" href="#kurban"><span class="tile-title">Курбан айт</span><span class="tile-sub">Бараны с бронью к дате</span></a>
+  </div>
+  <div class="facts">
+    <div class="fact" data-reveal style="--i:0"><b data-count="20">0</b><span>регионов: 17 областей и 3 города</span></div>
+    <div class="fact" data-reveal style="--i:1"><b data-count="24" data-suffix=" ч">0 ч</b><span>на осмотр скота, пока деньги у платформы</span></div>
+    <div class="fact" data-reveal style="--i:2"><b>2,5 %</b><span>комиссия с безопасной сделки, с продавца</span></div>
+    <div class="fact" data-reveal style="--i:3"><b>0 ₸</b><span>за размещение объявления</span></div>
+  </div>
+</section>
+
+<section class="band band--surface" id="prices">
+  <div class="container stack-lg">
+    <div class="stack" data-reveal><h2 class="h1">Цены на этой неделе</h2><p class="lead">Медиана по объявлениям за 30 дней. Обновляется каждое утро по каждой области и по стране.</p></div>
+    <div class="prices-grid">
+      <div class="panel" data-reveal="left">
+        <div class="lines num">
+          <div><span>Бык на убой, 550–650 кг</span><span class="v">1 300 000 ₸</span></div>
+          <div><span>Бычки на откорм, за кг живого веса</span><span class="v">2 250 ₸</span></div>
+          <div><span>Нетель стельная</span><span class="v">650 000 ₸</span></div>
+          <div><span>Баран едильбаевский, 60–70 кг</span><span class="v">92 500 ₸</span></div>
+          <div><span>Баран к Курбан айту, 70–90 кг</span><span class="v">130 000 ₸</span></div>
+          <div><span>Лошадь на согым, 380–420 кг</span><span class="v">815 000 ₸</span></div>
+          <div><span>Баранина, туша, за кг</span><span class="v">3 200 ₸</span></div>
+          <div><span>Говядина, четвертина, за кг</span><span class="v">2 900 ₸</span></div>
+          <div><span>Конина, за кг</span><span class="v">3 800 ₸</span></div>
+          <div><span>Казы домашнее, за кг</span><span class="v">6 500 ₸</span></div>
+        </div>
+        <a class="btn btn--white btn--wide" href="#all-prices" style="margin-top: var(--s-4)">Все цены по регионам</a>
+      </div>
+      <form class="panel panel--yellow" id="calc" data-reveal="scale" style="--i:1">
+        <h3 class="h2">Сколько мяса и почём</h3>
+        <p class="small" style="margin: 8px 0 16px">Выберите животное и вес: покажем выход мяса и медианную цену в вашей области.</p>
+        <div class="calc-form">
+          <label><span class="label">Животное</span><select class="field" name="species" autocomplete="off"><option value="cattle">Бык, КРС</option><option value="sheep">Баран, курдючный</option><option value="horse">Лошадь</option><option value="camel">Верблюд</option></select></label>
+          <label><span class="label">Живой вес, кг</span><input class="field" name="weight" type="number" inputmode="numeric" min="20" max="1200" value="500" autocomplete="off"></label>
+          <label><span class="label">Область</span><select class="field" name="region" autocomplete="off"><option value="kz-zha">Жамбылская</option><option value="kz-akm">Акмолинская</option><option value="kz-kos">Костанайская</option><option value="kz-tur">Туркестанская</option></select></label>
+        </div>
+        <div class="calc-out" aria-live="polite">
+          <div><b id="out-meat">260 кг</b><span>мяса на кости при средней упитанности</span></div>
+          <div><b id="out-price">1 250 000 ₸</b><span id="out-note">медиана за голову, Жамбылская область</span></div>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<section class="band band--green" id="deal">
+  <div class="container stack-lg">
+    <div class="stack" data-reveal><h2 class="h1">Безопасная сделка</h2><p class="lead">Покупатель платит платформе, не продавцу. Продавец получает деньги после осмотра скота или по решению арбитра.</p></div>
+    <ol class="steps-grid">
+      <li class="step" data-reveal style="--i:1"><span class="t">1</span><b>Оплата</b><span>Карта или QR. Деньги на счёте платформы, продавец видит, что сделка оплачена.</span></li>
+      <li class="step" data-reveal style="--i:2"><span class="t">2</span><b>Подготовка и доставка</b><span>Продавец оформляет справку формы 1. Перевозчик с биржи или самовывоз.</span></li>
+      <li class="step" data-reveal style="--i:3"><span class="t">3</span><b>Осмотр, 24 часа</b><span>Покупатель сверяет бирки и состояние животных. Для мяса 4 часа.</span></li>
+      <li class="step" data-reveal style="--i:4"><span class="t">4</span><b>Деньги продавцу</b><span>После подтверждения или автоматически по истечении окна. Спор решает арбитр за 48 часов.</span></li>
+    </ol>
+  </div>
+</section>
+
+<section class="band band--ink" id="sogym">
+  <div class="container sogym-grid">
+    <div class="stack" data-reveal="left">
+      <h2 class="h1">Согым вскладчину</h2>
+      <p class="lead">Одна лошадь, восемь долей. Каждый платит за свою часть. Если к сроку доли не разобраны, деньги вернутся всем автоматически.</p>
+      <p class="small">Сейчас: лошадь 390 кг от КХ «Ахметов», забой 5 декабря на бойне «Астана-Ет», доставка по Астане. Свободно 2 доли из 8.</p>
+    </div>
+    <div class="stack" data-reveal="scale" style="--i:1">
+      <div class="price-tag price-tag--lg" style="font-size: var(--fs-36)">820 000 ₸ <small>за тушу</small></div>
+      <div class="shares">
+        <a class="share" href="#half"><b>½</b><span>410 000 ₸</span></a>
+        <a class="share" href="#quarter"><b>¼</b><span>205 000 ₸</span></a>
+        <a class="share" href="#eighth"><b>⅛</b><span>102 500 ₸</span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section wrap container stack-lg" id="fresh">
+  <div class="row between wrap-row" data-reveal><h2 class="h1">Новые объявления</h2><a class="btn btn--white btn--sm" href="#all">Все 2 140</a></div>
+  <div class="cards-grid">
+    <a data-reveal style="--i:0" class="card card--tile" href="#l1"><div class="card-photo"><img src="../img/sheep-rider.jpg" width="800" height="600" loading="lazy" alt="" style="object-position:70% 50%"><span class="price-tag">95 000 ₸</span></div><div class="card-body"><div class="card-title">Едильбаевские бараны, партия 50 голов, 60–70 кг</div><div class="card-meta"><span>Аса, Жамбылская</span><span>12 км</span></div><div class="card-marks"><span class="mark mark--green">Проверено</span><span class="mark">Видео</span></div></div></a>
+    <a data-reveal style="--i:1" class="card card--tile" href="#l2"><div class="card-photo"><img src="../img/horses-almaty.jpg" width="800" height="600" loading="lazy" alt="" style="object-position:45% 60%"><span class="price-tag">850 000 ₸</span></div><div class="card-body"><div class="card-title">Лошадь на согым, 4 года, 420 кг, толстое казы</div><div class="card-meta"><span>Мерке, Жамбылская</span><span>61 км</span></div><div class="card-marks"><span class="mark mark--yellow">Торг</span></div></div></a>
+    <a data-reveal style="--i:2" class="card card--tile" href="#l3"><div class="card-photo"><img src="../img/camels-baikonur.jpg" width="800" height="600" loading="lazy" alt=""><span class="price-tag">900 000 ₸</span></div><div class="card-body"><div class="card-title">Верблюды бактрианы, 6 голов, на племя</div><div class="card-meta"><span>Таскала, ЗКО</span><span>1 100 км</span></div><div class="card-marks"><span class="mark">ИНЖ</span></div></div></a>
+    <a data-reveal style="--i:3" class="card card--tile" href="#l4"><div class="card-photo"><img src="../img/bazaar-kazy.jpg" width="800" height="600" loading="lazy" alt="" style="object-position:50% 70%"><span class="price-tag">6 500 ₸<small>/кг</small></span></div><div class="card-body"><div class="card-title">Казы домашнее, жая, қарта, шұжық</div><div class="card-meta"><span>Алматы</span><span>доставка</span></div><div class="card-marks"><span class="mark mark--green">Халал</span></div></div></a>
+  </div>
+</section>
+
+<section class="section wrap container stack-lg" id="faq">
+  <h2 class="h1" data-reveal>Частые вопросы</h2>
+  <div>
+    <details class="acc" open><summary>Сколько стоит разместить объявление?<span class="plus-ic" aria-hidden="true"><svg viewBox="0 0 14 14"><path d="M7 1v12M1 7h12"/></svg></span></summary><div class="acc-body"><div><p>Ничего. Платны только продвижение в топ области и безопасная сделка: с неё платформа удерживает 2,5 % с продавца, минимум 2 000 тенге.</p></div></div></details>
+    <details class="acc"><summary>Как покупатель узнаёт мой телефон?<span class="plus-ic" aria-hidden="true"><svg viewBox="0 0 14 14"><path d="M7 1v12M1 7h12"/></svg></span></summary><div class="acc-body"><div><p>Никак. Он звонит на подменный номер, звонок переадресуется вам. Номер действует сутки, потом выдаётся новый.</p></div></div></details>
+    <details class="acc"><summary>Что такое бирка ИНЖ и зачем её вводить?<span class="plus-ic" aria-hidden="true"><svg viewBox="0 0 14 14"><path d="M7 1v12M1 7h12"/></svg></span></summary><div class="acc-body"><div><p>Это номер животного в государственной базе. Объявления с бирками выше в поиске, а модератор или ветеринар может их проверить и поставить отметку «Проверено».</p></div></div></details>
+    <details class="acc"><summary>Что делать, если просят предоплату на карту?<span class="plus-ic" aria-hidden="true"><svg viewBox="0 0 14 14"><path d="M7 1v12M1 7h12"/></svg></span></summary><div class="acc-body"><div><p>Не переводить. Платформа предупредит вас прямо в чате, а жалоба уйдёт модератору в один тап. Платите только через безопасную сделку.</p></div></div></details>
+    <details class="acc"><summary>Что происходит при карантине?<span class="plus-ic" aria-hidden="true"><svg viewBox="0 0 14 14"><path d="M7 1v12M1 7h12"/></svg></span></summary><div class="acc-body"><div><p>Если в районе введён карантин по ящуру или бруцеллёзу, объявления о скоте оттуда скрываются, а перевозка блокируется до снятия ограничений. Продавцы получают уведомление.</p></div></div></details>
+    <details class="acc"><summary>Работает ли без интернета?<span class="plus-ic" aria-hidden="true"><svg viewBox="0 0 14 14"><path d="M7 1v12M1 7h12"/></svg></span></summary><div class="acc-body"><div><p>Объявление можно собрать в ауле без связи: фото, голосовое описание и цена сохранятся в телефоне и уйдут сами, когда появится сеть.</p></div></div></details>
+    <details class="acc"><summary>На каком языке писать?<span class="plus-ic" aria-hidden="true"><svg viewBox="0 0 14 14"><path d="M7 1v12M1 7h12"/></svg></span></summary><div class="acc-body"><div><p>На любом из двух. Второй язык подставится автоматически с пометкой, что это перевод, и его можно поправить.</p></div></div></details>
+  </div>
+</section>
+
+<footer class="footer wrap">
+  <div class="container">
+    <div class="big" data-reveal="scale">MalSatu</div>
+    <div class="footer-grid">
+      <div class="stack"><p>Площадка для тех, кто растит скот, и для тех, кто его покупает: от подворья до мясокомбината.</p><a class="btn" href="#new">Подать объявление</a></div>
+      <ul><li><a href="#prices">Цены</a></li><li><a href="#deal">Безопасная сделка</a></li><li><a href="#sogym">Согым</a></li><li><a href="#faq">Вопросы</a></li><li><a href="app.html">Экраны приложения</a></li></ul>
+      <ul><li>Алматы, 9:00–21:00</li><li>+7 727 000 00 00</li><li><a href="mailto:support@malsatu.kz">support@malsatu.kz</a></li><li><a href="#rules">Правила и оферта</a></li></ul>
+    </div>
+    <p class="small" style="margin-top: var(--s-6); opacity: .8">Фото: Togzhan Ibrayeva (CC BY-SA 4.0), Radosław Botev (CC BY 3.0), Ken and Nyetta, Sara Yeomans (CC BY 2.0), Ninaras (CC BY 4.0), via Wikimedia Commons.</p>
+  </div>
+</footer>
+
+<script>
+(() => {
+  // появление секций один раз
+  const io = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); } }, { rootMargin: '0px 0px -10% 0px', threshold: 0.08 });
+  document.querySelectorAll('[data-reveal]').forEach((el) => io.observe(el));
+  // счётчики
+  const co = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) { const el = e.target, end = Number(el.dataset.count), suf = el.dataset.suffix || ''; const t0 = performance.now(); const step = (t) => { const p = Math.min(1, (t - t0) / 900); const v = Math.round(end * (1 - Math.pow(1 - p, 3))); el.textContent = v + suf; if (p < 1) requestAnimationFrame(step); }; if (matchMedia('(prefers-reduced-motion: reduce)').matches) el.textContent = end + suf; else requestAnimationFrame(step); co.unobserve(el); } }, { threshold: 0.5 });
+  document.querySelectorAll('[data-count]').forEach((el) => co.observe(el));
+  // шапка
+  const top = document.querySelector('.top'); const onScroll = () => top.classList.toggle('is-scrolled', scrollY > 24); onScroll(); addEventListener('scroll', onScroll, { passive: true });
+  // бегущая строка: дублируем содержимое для бесшовного цикла
+  const tk = document.getElementById('ticker'); if (tk) tk.innerHTML += tk.innerHTML;
+})();
+(() => {
+  const yieldOf = { cattle: 0.52, sheep: 0.51, horse: 0.52, camel: 0.50 };
+  const perHead = { cattle: { 'kz-zha': 1250000, 'kz-akm': 1300000, 'kz-kos': 1350000, 'kz-tur': 1200000 }, sheep: { 'kz-zha': 92500, 'kz-akm': 88000, 'kz-kos': 75000, 'kz-tur': 110000 }, horse: { 'kz-zha': 850000, 'kz-akm': 780000, 'kz-kos': 760000, 'kz-tur': 820000 }, camel: { 'kz-zha': 950000, 'kz-akm': 900000, 'kz-kos': 900000, 'kz-tur': 980000 } };
+  const names = { 'kz-zha': 'Жамбылская область', 'kz-akm': 'Акмолинская область', 'kz-kos': 'Костанайская область', 'kz-tur': 'Туркестанская область' };
+  const f = document.getElementById('calc'); const fmt = (n) => new Intl.NumberFormat('ru-KZ', { maximumFractionDigits: 0 }).format(n);
+  const update = () => { const s = f.species.value, w = Math.max(0, Number(f.weight.value) || 0), r = f.region.value; const meat = Math.round(w * yieldOf[s]); const price = perHead[s][r];
+    document.getElementById('out-meat').textContent = fmt(meat) + ' кг'; document.getElementById('out-price').textContent = fmt(price) + ' ₸';
+    document.getElementById('out-note').textContent = 'медиана за голову, ' + names[r] + (meat ? ', это ' + fmt(Math.round(price / meat)) + ' ₸ за кг мяса' : ''); };
+  f.addEventListener('input', update); f.addEventListener('submit', (e) => { e.preventDefault(); update(); }); update();
+})();
+</script>
+</body>
+</html>

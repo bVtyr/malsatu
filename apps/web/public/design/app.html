@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MalSatu · экраны</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700;800&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../malsatu.css">
+<style>
+body { background: var(--surface-2); }
+.page-head { padding: var(--s-6) var(--gutter) var(--s-3); }
+.phones { display: grid; grid-template-columns: repeat(auto-fill, minmax(390px, 1fr)); gap: 40px 24px; padding: var(--s-4) var(--gutter) var(--s-8); }
+@media (max-width: 440px) { .phones { grid-template-columns: 1fr; padding-inline: 0; gap: 24px; } }
+.phone { width: 100%; max-width: 420px; margin-inline: auto; background: var(--paper); color: var(--ink); min-height: 860px; position: relative; display: flex; flex-direction: column; border: var(--border) solid var(--line); border-radius: 24px; overflow: hidden; }
+.phone h2 { position: absolute; left: 0; right: 0; bottom: -2.4rem; font: 600 var(--fs-14)/1.3 var(--font-ui); color: var(--muted); }
+.phone .app-top { position: static; }
+.phone .app-nav { position: static; margin-top: auto; }
+.phone .app-main { flex: 1; padding-bottom: var(--s-5); }
+.phone .app-main > * + * { margin-top: var(--s-4); }
+.signs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
+.signs .tile { min-height: 88px; padding: var(--s-3); flex-direction: row; align-items: center; justify-content: flex-start; }
+.signs .tile .tile-icon { width: 32px; height: 32px; }
+.seller { display: flex; gap: var(--s-3); align-items: center; }
+.seller b { display: block; font-weight: 600; }
+.seller span { display: block; font-size: var(--fs-14); color: var(--muted); }
+.chat-head { display: flex; align-items: center; gap: var(--s-3); min-width: 0; }
+.chat-head .avatar { width: 36px; height: 36px; font-size: 14px; }
+.chat-head b { display: block; font-weight: 600; font-size: var(--fs-14); }
+.chat-head span { display: block; font-size: var(--fs-12); color: var(--muted); }
+.chat-form { display: grid; grid-template-columns: auto 1fr auto; gap: var(--s-2); align-items: center; }
+.chat-form .btn { padding-inline: 12px; }
+.profile-head { display: flex; align-items: center; gap: var(--s-3); }
+.profile-head .avatar { width: 56px; height: 56px; font-size: 22px; }
+.profile-head b { display: block; font-family: var(--font-display); font-size: var(--fs-18); line-height: 1.2; }
+.profile-head span { font-size: var(--fs-14); color: var(--muted); }
+.stat-row { display: flex; gap: var(--s-4); flex-wrap: wrap; font-size: var(--fs-14); color: var(--muted); }
+.stat-row b { color: var(--ink); font-family: var(--font-display); font-weight: 700; }
+.big-price { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-28); line-height: 1; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<header class="page-head"><h1 class="h1">Экраны приложения</h1><p class="lead" style="margin-top:8px">Шесть экранов в масштабе 1:1 из тех же стилей, что и сайт.</p></header>
+<section class="phones">
+
+<!-- 1. Поиск -->
+<article class="phone" aria-label="Поиск">
+  <div class="app-top"><a class="logo" href="#"><span class="logo-mark">M</span>MalSatu</a><button class="chip">ҚАЗ</button></div>
+  <div class="app-main">
+    <form class="search" aria-label="Поиск"><input class="field" type="search" placeholder="қой, бычки, казы…" aria-label="Что ищете"><button class="btn btn--ink" aria-label="Искать"><svg class="ic" viewBox="0 0 48 48"><circle cx="21" cy="21" r="12"/><path d="m30 30 12 12"/></svg></button></form>
+    <div class="signs">
+      <a class="tile tile--green" href="#"><svg class="tile-icon" viewBox="0 0 48 48"><path d="M10 20c-4 0-6-3-5-6 2 1 4 2 7 2M38 20c4 0 6-3 5-6-2 1-4 2-7 2"/><path d="M14 16h20l3 8v8a7 7 0 0 1-7 7H18a7 7 0 0 1-7-7v-8l3-8Z"/></svg><span class="tile-title">КРС</span></a>
+      <a class="tile tile--yellow" href="#"><svg class="tile-icon" viewBox="0 0 48 48"><path d="M12 24a6 6 0 0 1 2-11 6 6 0 0 1 11-3 6 6 0 0 1 11 3 6 6 0 0 1 2 11 6 6 0 0 1-3 10H15a6 6 0 0 1-3-10Z"/><path d="M30 22a5 6 0 0 1 10 1v4h-9"/></svg><span class="tile-title">МРС</span></a>
+      <a class="tile tile--ink" href="#"><svg class="tile-icon" viewBox="0 0 48 48"><path d="M10 40V26c0-8 6-14 14-14h4l6-6 2 8 4 4-4 4v4c0 8-5 14-12 14"/><path d="M14 20c-2-1-4-1-6 1M16 40v-8"/></svg><span class="tile-title">Лошади</span></a>
+      <a class="tile" href="#"><svg class="tile-icon" viewBox="0 0 48 48"><path d="M14 30c-4-8 2-18 12-18s14 6 12 14-8 12-14 12c-4 0-8-3-10-8Z"/><path d="M20 24a4 4 0 0 1 8 0 4 4 0 0 1-8 0Z"/></svg><span class="tile-title">Мясо</span></a>
+    </div>
+    <div class="chips chips--scroll" aria-label="Фильтры"><button class="chip" aria-pressed="true">Жамбылская</button><button class="chip">50 км</button><button class="chip">С документами</button><button class="chip">Видео</button><button class="chip">Безопасная сделка</button></div>
+    <div class="row between"><span class="small muted">38 объявлений</span><button class="chip">Сначала новые</button></div>
+    <div class="list">
+      <a class="card" href="#"><div class="card-photo"><img src="../img/sheep-rider.jpg" width="400" height="400" loading="lazy" alt="" style="object-position:70% 50%"><span class="price-tag">95 000 ₸</span></div><div class="card-body"><div class="card-title">Едильбаевские бараны, партия 50 голов, 60–70 кг</div><div class="card-meta"><span>50 голов</span><span>~65 кг</span><span>12 км</span></div><div class="card-marks"><span class="mark mark--green">Проверено</span><span class="mark">ИНЖ</span><span class="mark">Видео</span></div></div></a>
+      <a class="card" href="#"><div class="card-photo"><img src="../img/horses-almaty.jpg" width="400" height="400" loading="lazy" alt="" style="object-position:45% 60%"><span class="price-tag">850 000 ₸</span></div><div class="card-body"><div class="card-title">Лошадь на согым, 4 года, 420 кг, толстое казы</div><div class="card-meta"><span>3 головы</span><span>~420 кг</span><span>61 км</span></div><div class="card-marks"><span class="mark mark--yellow">Торг</span></div></div></a>
+      <a class="card" href="#"><div class="card-photo"><img src="../img/sheep-qaraoy.jpg" width="400" height="400" loading="lazy" alt="" style="object-position:50% 60%"><span class="price-tag">45 000 ₸</span></div><div class="card-body"><div class="card-title">Ягнята, 80 голов, 6 месяцев</div><div class="card-meta"><span>80 голов</span><span>~30 кг</span><span>140 км</span></div><div class="card-marks"><span class="mark mark--yellow">Торг</span></div></div></a>
+    </div>
+  </div>
+  <nav class="app-nav"><ul>
+    <li><a href="#"><svg class="ic" viewBox="0 0 48 48"><path d="M6 24 24 8l18 16M12 20v20h24V20"/></svg>Главная</a></li>
+    <li><a href="#" aria-current="page"><svg class="ic" viewBox="0 0 48 48"><circle cx="21" cy="21" r="12"/><path d="m30 30 12 12"/></svg>Поиск</a></li>
+    <li><a class="nav-add" href="#"><span class="plus"><svg class="ic" viewBox="0 0 48 48"><path d="M24 10v28M10 24h28"/></svg></span>Подать</a></li>
+    <li><a href="#"><svg class="ic" viewBox="0 0 48 48"><path d="M8 10h32v22H20l-10 8v-8H8z"/></svg>Чаты</a></li>
+    <li><a href="#"><svg class="ic" viewBox="0 0 48 48"><circle cx="24" cy="16" r="8"/><path d="M8 42c2-10 8-14 16-14s14 4 16 14"/></svg>Профиль</a></li>
+  </ul></nav>
+  <h2>Поиск: цветные плитки категорий, чипы фильтров, карточки с жёлтой ценой</h2>
+</article>
+
+<!-- 2. Карточка -->
+<article class="phone" aria-label="Карточка объявления">
+  <div class="app-top"><button class="chip">Назад</button><button class="chip">Поделиться</button></div>
+  <div class="app-main">
+    <div><div class="gallery"><img src="../img/steppe-herdsman.jpg" width="1200" height="900" alt="Отара и чабан в степи на закате" style="object-fit:cover"></div><div class="dots" aria-hidden="true"><span class="is-on"></span><span></span><span></span><span></span></div></div>
+    <div class="stack" style="--s-4: 8px">
+      <h1 class="h3">Едильбаевские бараны, партия 50 голов, 60–70 кг</h1>
+      <div class="price-tag price-tag--lg">95 000 ₸ <small>за голову, торг</small></div>
+      <p class="small muted">≈ 1 460 ₸ за кг живого веса. 50 голов, 12 км от вас, 20 октября</p>
+    </div>
+    <div class="chips"><span class="mark mark--green">Ветсправка проверена</span><span class="mark">ИНЖ: 50</span><span class="mark">Халал</span><span class="mark mark--yellow">Безопасная сделка</span></div>
+    <div class="actions">
+      <a class="btn" href="#"><svg class="ic" viewBox="0 0 48 48"><path d="M14 6h8l4 10-6 4c2 6 6 10 12 12l4-6 10 4v8c0 2-2 4-4 4C22 42 6 26 6 10c0-2 2-4 4-4h4z"/></svg>Позвонить</a>
+      <a class="btn" href="#"><svg class="ic" viewBox="0 0 48 48"><path d="M8 10h32v22H20l-10 8v-8H8z"/></svg>Написать</a>
+      <a class="btn btn--white" href="#">Предложить цену</a><a class="btn btn--white" href="#">Забронировать</a>
+      <a class="btn btn--green span-2" href="#">Безопасная сделка</a>
+    </div>
+    <div class="notice notice--red"><svg class="ic" viewBox="0 0 48 48"><path d="M24 6 4 42h40z"/><path d="M24 18v12M24 34v2"/></svg><span>Не переводите предоплату на личные карты. Платите через безопасную сделку: деньги уйдут продавцу после осмотра.</span></div>
+    <a class="seller panel" href="#"><span class="avatar">С</span><span><b>ШҚ «Сейтқали», Аса</b><span>Хозяйство проверено. 12 сделок, отвечает за 20 минут</span></span></a>
+    <dl class="kv panel panel--surface"><dt>Порода</dt><dd>Едильбаевская</dd><dt>Пол, возраст</dt><dd>бараны, 14 мес.</dd><dt>Упитанность</dt><dd>высшая</dd><dt>Назначение</dt><dd>на убой, на Курбан айт</dd><dt>Вакцинация</dt><dd>15 сентября</dd><dt>Доставка</dt><dd>самовывоз, перевозчик</dd></dl>
+    <div class="map"><img src="../img/steppe-zhambyl.jpg" width="800" height="400" loading="lazy" alt="" style="width:100%;height:100%;object-fit:cover;opacity:.75"></div>
+  </div>
+  <h2>Карточка: галерея, крупная цена, действия, предупреждение, продавец, характеристики</h2>
+</article>
+
+<!-- 3. Мастер -->
+<article class="phone" aria-label="Мастер подачи">
+  <div class="app-top"><button class="chip">Назад</button><span class="small muted">Шаг 3 из 7</span><button class="chip">Сохранить</button></div>
+  <div class="app-main">
+    <div class="steps" aria-hidden="true"><span class="is-done"></span><span class="is-done"></span><span class="is-now"></span><span></span><span></span><span></span><span></span></div>
+    <div><h1 class="h2">Фото и видео</h1><p class="small muted" style="margin-top:6px">Минимум три фото с разных сторон. Для партии снимите короткое видео.</p></div>
+    <div class="photo-grid">
+      <div><img src="../img/sheep-rider.jpg" width="400" height="400" alt="" style="object-position:70% 50%"><span class="mark mark--yellow" style="position:absolute;left:6px;top:6px">Обложка</span></div>
+      <div><img src="../img/sheep-qaraoy.jpg" width="400" height="400" alt=""><button class="rm" aria-label="Удалить фото">×</button></div>
+      <button class="add" type="button"><svg class="ic" viewBox="0 0 48 48"><path d="M6 16h8l4-6h12l4 6h8v24H6z"/><circle cx="24" cy="27" r="7"/></svg>Снять</button>
+      <button class="add" type="button" style="background:var(--surface)"><svg class="ic" viewBox="0 0 48 48"><rect x="6" y="12" width="26" height="24"/><path d="m32 20 10-6v20l-10-6"/></svg>Видео</button>
+    </div>
+    <div><label class="label" for="d">Описание</label><textarea class="field" id="d">Таза тұқымды Еділбай қошқарлары. Жайылымда өскен, вакцинацияланған.</textarea><div class="chips" style="margin-top:8px"><button class="chip" type="button"><svg class="ic" viewBox="0 0 48 48"><rect x="18" y="6" width="12" height="22" rx="6"/><path d="M10 22a14 14 0 0 0 28 0M24 36v6"/></svg>Надиктовать</button></div></div>
+    <div class="notice"><svg class="ic" viewBox="0 0 48 48"><path d="M24 6v36M8 24h32"/></svg><span><b>Средняя цена в Жамбылской области: 92 500 ₸</b> за голову, по 47 объявлениям за 30 дней.</span></div>
+    <div class="actions"><button class="btn btn--white" type="button">Назад</button><button class="btn btn--ink" type="button">Далее</button></div>
+  </div>
+  <h2>Мастер: полоса шагов, фото с камеры, голосовой ввод, подсказка цены</h2>
+</article>
+
+<!-- 4. Чат -->
+<article class="phone" aria-label="Чат">
+  <div class="app-top"><button class="chip">Назад</button><div class="chat-head"><span class="avatar">С</span><span><b>Бауыржан, ШҚ «Сейтқали»</b><span>бараны, 50 голов</span></span></div><button class="chip">Ещё</button></div>
+  <div class="app-main">
+    <div class="msgs">
+      <div class="msg msg--sys">Сегодня</div>
+      <div class="msg msg--mine">Сәлеметсіз бе, 50 қой әлі бар ма? Тойға керек.<time>10:12</time></div>
+      <div class="msg">Иә, бар. Видеосын қараңыз, салмағы 60–70 кг.<span class="small muted" style="display:block;margin-top:4px">Перевод: Да, есть. Посмотрите видео, вес 60–70 кг.</span><time>10:14</time></div>
+      <div class="msg msg--mine">Скиньте предоплату 100 000 на карту, и я заберу<time>10:20</time></div>
+      <div class="notice notice--red"><svg class="ic" viewBox="0 0 48 48"><path d="M24 6 4 42h40z"/><path d="M24 18v12M24 34v2"/></svg><span>В сообщении просят предоплату на карту. Платформа такие переводы не защищает. Предложите безопасную сделку.</span></div>
+      <div class="msg">Тек платформа арқылы қауіпсіз мәміле. Только через безопасную сделку.<time>10:21</time></div>
+      <div class="msg msg--mine" style="background:var(--green);color:var(--on-green);border-color:var(--green)"><b>Предложение: 90 000 ₸ × 50</b><span class="small" style="display:block">Ожидает ответа продавца</span><time style="color:inherit;opacity:.8">10:25</time></div>
+    </div>
+    <div class="chips chips--scroll" aria-label="Быстрые ответы"><button class="chip">Әлі сатылмады ма?</button><button class="chip">Можно приехать посмотреть?</button><button class="chip">Цена за партию?</button></div>
+    <form class="chat-form"><button class="btn btn--white" type="button" aria-label="Фото"><svg class="ic" viewBox="0 0 48 48"><path d="M6 16h8l4-6h12l4 6h8v24H6z"/><circle cx="24" cy="27" r="7"/></svg></button><input class="field" placeholder="Сообщение…" aria-label="Текст сообщения"><button class="btn btn--ink" aria-label="Отправить"><svg class="ic" viewBox="0 0 48 48"><path d="M6 24 42 8 32 42l-8-14z"/></svg></button></form>
+  </div>
+  <h2>Чат: перевод, антифрод-предупреждение, оффер зелёным, быстрые ответы</h2>
+</article>
+
+<!-- 5. Сделка -->
+<article class="phone" aria-label="Сделка">
+  <div class="app-top"><button class="chip">Назад</button><span class="small muted">Сделка 2041</span><span></span></div>
+  <div class="app-main">
+    <div class="panel panel--green"><div class="row between"><div><span class="small">Безопасная сделка</span><div class="h2" style="margin-top:4px">Осмотр</div></div><div class="big-price">4 500 000 ₸</div></div><p class="small" style="margin-top:12px;max-width:none">Деньги у платформы. Осмотрите животных и сверьте бирки до 18:40 завтра. Всё в порядке: подтвердите. Нет: откройте спор.</p></div>
+    <div class="steps" aria-hidden="true"><span class="is-done"></span><span class="is-done"></span><span class="is-done"></span><span class="is-done"></span><span class="is-now"></span><span></span><span></span></div>
+    <div class="lines small"><div><span>Создана</span><span class="v">20 окт, 10:40</span></div><div><span>Оплачена</span><span class="v">20 окт, 11:05</span></div><div><span>Готовится, справка формы 1</span><span class="v">21 окт</span></div><div><span>В пути, перевозчик Бекзат</span><span class="v">22 окт, 06:10</span></div><div><span>Осмотр, 24 часа</span><span class="v">до 23 окт, 18:40</span></div></div>
+    <dl class="kv panel panel--surface"><dt>Партия</dt><dd>50 × 90 000 ₸</dd><dt>Сумма</dt><dd>4 500 000 ₸</dd><dt>Комиссия</dt><dd>90 000 ₸, с продавца</dd><dt>Доставка</dt><dd>скотовоз, 420 000 ₸</dd><dt>Ветеринар</dt><dd>здоровы, 21 октября</dd></dl>
+    <div class="actions"><button class="btn btn--green span-2" type="button">Подтвердить получение</button><button class="btn btn--white span-2" type="button">Открыть спор с фото</button></div>
+  </div>
+  <h2>Сделка: статус зелёной панелью, шаги, суммы, два действия</h2>
+</article>
+
+<!-- 6. Кабинет -->
+<article class="phone" aria-label="Кабинет">
+  <div class="app-top"><a class="logo" href="#"><span class="logo-mark">M</span>MalSatu</a><button class="chip">Выйти</button></div>
+  <div class="app-main">
+    <div class="profile-head"><span class="avatar">С</span><span><b>ШҚ «Сейтқали»</b><span>Хозяйство проверено. Аса, Жамбылская область</span></span></div>
+    <div class="stat-row"><span><b>12</b> сделок</span><span><b>4,9</b> рейтинг</span><span><b>20 мин</b> ответ</span></div>
+    <div class="chips chips--scroll"><button class="chip" aria-pressed="true">Объявления</button><button class="chip">Сделки</button><button class="chip">Офферы 3</button><button class="chip">Стадо</button><button class="chip">Финансы</button></div>
+    <div class="list">
+      <div class="card" style="display:block"><div class="row"><div class="card-photo" style="width:96px;flex:0 0 auto"><img src="../img/sheep-rider.jpg" width="200" height="200" alt="" style="object-position:70% 50%"></div><div class="card-body"><div class="card-title">Едильбаевские бараны, 50 голов</div><div class="card-marks"><span class="mark mark--green">Активно</span><span class="mark">до 20 ноября</span></div></div></div><div class="stat-row" style="margin-top:12px"><span><b>412</b> просмотров</span><span><b>18</b> звонков</span><span><b>3</b> оффера</span></div><div class="chips" style="margin-top:12px"><button class="chip">Забронировано</button><button class="chip">Продано</button><button class="chip">Продлить</button></div></div>
+      <div class="card" style="display:block"><div class="row"><div class="card-photo" style="width:96px;flex:0 0 auto"><img src="../img/horses-almaty.jpg" width="200" height="200" alt="" style="object-position:45% 60%"></div><div class="card-body"><div class="card-title">Лошадь на согым, 4 года, 420 кг</div><div class="card-marks"><span class="mark mark--yellow">На модерации</span></div></div></div></div>
+    </div>
+    <div class="notice notice--plain"><svg class="ic" viewBox="0 0 48 48"><path d="M8 32a8 8 0 0 1 4-15 10 10 0 0 1 19-3 7 7 0 0 1 9 7 7 7 0 0 1-2 11"/><path d="M24 24v16M18 34l6 6 6-6"/></svg><span><b>Черновик без связи.</b> «Саулық қойлар, 120 бас» сохранён в телефоне и уйдёт, когда появится интернет.</span></div>
+    <a class="btn btn--wide" href="#">Подать объявление</a>
+  </div>
+  <nav class="app-nav"><ul>
+    <li><a href="#"><svg class="ic" viewBox="0 0 48 48"><path d="M6 24 24 8l18 16M12 20v20h24V20"/></svg>Главная</a></li>
+    <li><a href="#"><svg class="ic" viewBox="0 0 48 48"><circle cx="21" cy="21" r="12"/><path d="m30 30 12 12"/></svg>Поиск</a></li>
+    <li><a class="nav-add" href="#"><span class="plus"><svg class="ic" viewBox="0 0 48 48"><path d="M24 10v28M10 24h28"/></svg></span>Подать</a></li>
+    <li><a href="#"><svg class="ic" viewBox="0 0 48 48"><path d="M8 10h32v22H20l-10 8v-8H8z"/></svg>Чаты</a></li>
+    <li><a href="#" aria-current="page"><svg class="ic" viewBox="0 0 48 48"><circle cx="24" cy="16" r="8"/><path d="M8 42c2-10 8-14 16-14s14 4 16 14"/></svg>Профиль</a></li>
+  </ul></nav>
+  <h2>Кабинет: статистика, статусы, офлайн-черновик</h2>
+</article>
+</section>
+</body>
+</html>
