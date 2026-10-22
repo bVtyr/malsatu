@@ -13,6 +13,7 @@ export function buildSearchQuery(db: Kysely<Database>, s: ListingSearch, ctx: Se
     .where("listings.status", "in", statuses).where("listings.deleted_at", "is", null);
 
   if (s.kind) q = q.where("listings.kind", "=", s.kind);
+  if (s.owner) q = q.where("listings.owner_user_id", "=", s.owner);
   if (s.category) q = q.where((eb) => eb.or([
     eb("listings.category_code", "=", s.category!),
     eb("listings.category_code", "in", eb.selectFrom("categories").select("code").where("parent_code", "=", s.category!)),
@@ -40,8 +41,10 @@ export function buildSearchQuery(db: Kysely<Database>, s: ListingSearch, ctx: Se
   const hasGeo = s.lat != null && s.lng != null;
   const point = hasGeo ? sql`ST_SetSRID(ST_MakePoint(${s.lng}, ${s.lat}), 4326)::geography` : null;
   if (hasGeo && s.radiusKm) q = q.where(sql<boolean>`ST_DWithin(listings.location, ${point}, ${s.radiusKm * 1000})`);
-  if (hasGeo) q = q.select(sql<number>`ST_Distance(listings.location, ${point}) / 1000.0`.as("distance_km"));
-  else if (ctx.viewer) q = q.select(sql<number>`ST_Distance(listings.location, ST_SetSRID(ST_MakePoint(${ctx.viewer.lng}, ${ctx.viewer.lat}),4326)::geography) / 1000.0`.as("distance_km"));
+  // расстояние считаем от публичной (размытой) точки: наружу не уходит ни одного байта точных координат
+  const pub = sql`ST_SetSRID(ST_MakePoint(listings.public_lng, listings.public_lat), 4326)::geography`;
+  if (hasGeo) q = q.select(sql<number>`ST_Distance(${pub}, ${point}) / 1000.0`.as("distance_km"));
+  else if (ctx.viewer) q = q.select(sql<number>`ST_Distance(${pub}, ST_SetSRID(ST_MakePoint(${ctx.viewer.lng}, ${ctx.viewer.lat}),4326)::geography) / 1000.0`.as("distance_km"));
 
   if (s.q && s.q.trim()) {
     const ts = toTsQuery(s.q);
@@ -49,7 +52,7 @@ export function buildSearchQuery(db: Kysely<Database>, s: ListingSearch, ctx: Se
     q = q.where((eb) => eb.or([
       sql<boolean>`listings.search_vector @@ to_tsquery('simple', ${ts})`,
       sql<boolean>`(coalesce(listings.title_ru,'') || ' ' || coalesce(listings.title_kk,'')) ILIKE ${like}`,
-      sql<boolean>`similarity(coalesce(listings.title_ru,'') || ' ' || coalesce(listings.title_kk,''), ${s.q.trim()}) > 0.3`,
+      sql<boolean>`(coalesce(listings.title_ru,'') || ' ' || coalesce(listings.title_kk,'')) % ${s.q.trim()}`, // триграммный оператор использует GIN-индекс
     ]));
   }
 

@@ -8,6 +8,6 @@ export function middleware(req: NextRequest) {
   const cookie = req.cookies.get("locale")?.value;
   const header = req.headers.get("accept-language") ?? "";
   const locale = cookie && LOCALES.includes(cookie) ? cookie : header.toLowerCase().startsWith("kk") ? "kk" : "ru";
-  return NextResponse.redirect(new URL(`/${locale}${pathname === "/" ? "" : pathname}${req.nextUrl.search}`, req.url));
+  return NextResponse.redirect(new URL(`/${locale}${pathname === "/" ? "" : pathname}${req.nextUrl.search}`, req.url), 308);
 }
 export const config = { matcher: ["/((?!_next|api|.*\\..*).*)"] };

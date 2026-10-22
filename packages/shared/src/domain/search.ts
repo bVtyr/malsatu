@@ -54,5 +54,6 @@ export function expandQuery(q: string): string[] {
 export function toTsQuery(q: string): string {
   const terms = expandQuery(q).map((t) => t.replace(/[^\p{L}\p{N} ]/gu, "").trim()).filter(Boolean);
   if (terms.length === 0) return "";
-  return terms.map((t) => t.split(" ").map((w) => `${w}:*`).join(" & ")).map((t) => `(${t})`).join(" | ");
+  // префиксный поиск только для слов от 4 букв: «ат:*» иначе ловит «атбасар», «каз:*» — «казы» и «казахская»
+  return terms.map((t) => t.split(" ").map((w) => (w.length >= 4 ? `${w}:*` : w)).join(" & ")).map((t) => `(${t})`).join(" | ");
 }

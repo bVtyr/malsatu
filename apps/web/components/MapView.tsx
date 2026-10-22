@@ -1,6 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -11,6 +11,7 @@ const CircleMarker = dynamic(() => import("react-leaflet").then((m) => m.CircleM
 const Popup = dynamic(() => import("react-leaflet").then((m) => m.Popup), { ssr: false });
 const Circle = dynamic(() => import("react-leaflet").then((m) => m.Circle), { ssr: false });
 const TILES = process.env.NEXT_PUBLIC_MAP_TILES ?? "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const Clicker = dynamic(() => import("react-leaflet").then((m) => { const { useMapEvents } = m; return function CK({ onChange }: { onChange: (p: { lat: number; lng: number }) => void }) { useMapEvents({ click: (e) => onChange({ lat: e.latlng.lat, lng: e.latlng.lng }) }); return null; }; }), { ssr: false });
 const ZoomWatcher = dynamic(() => import("react-leaflet").then((m) => { const { useMapEvents } = m; return function ZW({ onZoom }: { onZoom: (z: number) => void }) { useMapEvents({ zoomend: (e) => onZoom(e.target.getZoom()) }); return null; }; }), { ssr: false });
 
 /** Карта объявлений: серверные кластеры по zoom. */
@@ -26,7 +27,7 @@ export function ListingsMap({ query, center }: { query: Record<string, unknown>;
         <TileLayer url={TILES} attribution="© OpenStreetMap" />
         <ZoomWatcher onZoom={setZoom} />
         {clusters.map((cl, i) => (
-          <CircleMarker key={i} center={[cl.lat, cl.lng]} radius={cl.count > 1 ? Math.min(28, 10 + Math.log2(cl.count) * 4) : 8} pathOptions={{ color: "#141413", fillColor: "#f0c21c", fillOpacity: 0.95, weight: 2 }}>
+          <CircleMarker key={`${cl.lat.toFixed(3)},${cl.lng.toFixed(3)}`} center={[cl.lat, cl.lng]} radius={cl.count > 1 ? Math.min(28, 10 + Math.log2(cl.count) * 4) : 8} pathOptions={{ color: "#141413", fillColor: "#f0c21c", fillOpacity: 0.95, weight: 2 }}>
             <Popup><strong>{cl.count}</strong><ul style={{ paddingLeft: 0, listStyle: "none", margin: "0.3rem 0 0" }}>{cl.items.map((it: any) => <li key={it.id}><a href={href(`/listing/${it.id}`)}>{lf(it, "title")}</a>{it.price_kzt ? ` · ${money(it.price_kzt)}` : ""}</li>)}</ul></Popup>
           </CircleMarker>
         ))}
@@ -38,12 +39,11 @@ export function ListingsMap({ query, center }: { query: Record<string, unknown>;
 /** Выбор точки на карте (мастер). */
 export function PointPicker({ value, onChange }: { value: { lat: number; lng: number } | null; onChange: (p: { lat: number; lng: number }) => void }) {
   const c = value ?? { lat: 48.0, lng: 68.0 };
-  const Clicker = useMemo(() => dynamic(() => import("react-leaflet").then((m) => { const { useMapEvents } = m; return function CK() { useMapEvents({ click: (e) => onChange({ lat: e.latlng.lat, lng: e.latlng.lng }) }); return null; }; }), { ssr: false }), [onChange]);
   return (
     <div className="map" style={{ aspectRatio: "3 / 2" }}>
       <MapContainer center={[c.lat, c.lng]} zoom={value ? 10 : 4} style={{ height: "100%" }}>
         <TileLayer url={TILES} attribution="© OpenStreetMap" />
-        <Clicker />
+        <Clicker onChange={onChange} />
         {value && <Circle center={[value.lat, value.lng]} radius={1500} pathOptions={{ color: "#184c2e", fillColor: "#f0c21c", fillOpacity: 0.5 }} />}
       </MapContainer>
     </div>

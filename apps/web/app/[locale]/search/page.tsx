@@ -12,7 +12,7 @@ import { CategoryIcon, Search } from "@/components/Icons";
 import { RADIUS_PRESETS_KM } from "@malsatu/shared";
 
 function SearchInner() {
-  const { t, name, href, locale } = useI18n(); const { user } = useAuth(); const { pos } = useGeo();
+  const { t, name, href, locale } = useI18n(); const { user } = useAuth(); const { pos, request: requestGeo } = useGeo();
   const sp = useSearchParams(); const router = useRouter();
   const q = useMemo(() => Object.fromEntries(sp.entries()), [sp]);
   const set = (patch: Record<string, string | undefined>) => { const n = new URLSearchParams(sp); for (const [k, v] of Object.entries(patch)) v ? n.set(k, v) : n.delete(k); n.delete("page"); router.replace(`?${n.toString()}`); };
@@ -49,8 +49,8 @@ function SearchInner() {
       </div>
       {filters && (
         <div className="panel panel--surface stack">
-          <RegionPicker value={q.region ?? null} onChange={(code) => set({ region: code, radiusKm: undefined })} geo={pos} />
-          <div><span className="label">{t.filters.radius}{pos ? "" : ` (${locale === "kk" ? "геолокация қажет" : "нужна геолокация"})`}</span><div className="chips">{RADIUS_PRESETS_KM.map((r) => <button key={r} type="button" onClick={() => set({ radiusKm: q.radiusKm === String(r) ? undefined : String(r), region: undefined })} className="chip" aria-pressed={q.radiusKm === String(r)}>{r} {t.common.km}</button>)}</div></div>
+          <RegionPicker value={q.region ?? null} onChange={(code) => set({ region: code, radiusKm: undefined })} geo={pos} onRequestGeo={requestGeo} />
+          <div><span className="label">{t.filters.radius}{pos ? "" : ` (${locale === "kk" ? "геолокация қажет" : "нужна геолокация"})`}</span><div className="chips">{RADIUS_PRESETS_KM.map((r) => <button key={r} type="button" onClick={() => { if (!pos) requestGeo(); set({ radiusKm: q.radiusKm === String(r) ? undefined : String(r), region: undefined }); }} className="chip" aria-pressed={q.radiusKm === String(r)}>{r} {t.common.km}</button>)}</div></div>
           {breeds.length > 0 && <select className="field" value={q.breed ?? ""} onChange={(e) => set({ breed: e.target.value || undefined })} aria-label={t.filters.breed}><option value="">{t.filters.breed}</option>{breeds.map((b) => <option key={b.code} value={b.code}>{name(b)}</option>)}</select>}
           <div className="actions">
             {([["priceMin", `${t.filters.price}, ${t.common.from}`], ["priceMax", `${t.filters.price}, ${t.common.to}`], ["weightMin", `${t.filters.weight}, ${t.common.from}`], ["qtyMin", `${t.filters.quantity}, ${t.common.from}`], ["ageMin", `${t.filters.age}, ${t.common.from}`], ["ageMax", `${t.filters.age}, ${t.common.to}`]] as const).map(([k, label]) => (

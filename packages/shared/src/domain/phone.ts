@@ -4,10 +4,10 @@ export function normalizeKzPhone(raw: string): string | null {
   let d = digits;
   if (d.length === 10 && d.startsWith("7")) d = "7" + d; // 7XXXXXXXXX без кода страны (редко)
   if (d.length === 11 && d.startsWith("8")) d = "7" + d.slice(1);
-  if (d.length === 10 && !d.startsWith("7")) d = "7" + d;
+  if (d.length === 10 && d.startsWith("7")) d = "7" + d;
   if (d.length !== 11 || !d.startsWith("7")) return null;
-  // Казахстанские мобильные коды: 700-709, 747, 771, 775-778 ...; принимаем все 7xx для гибкости
-  if (!/^7[0-9]{10}$/.test(d)) return null;
+  // Только мобильные Казахстана (+7 7xx): российские +7 9xx и прочие не принимаем, чтобы не оплачивать чужие SMS
+  if (!/^77[0-9]{9}$/.test(d)) return null;
   return "+" + d;
 }
 

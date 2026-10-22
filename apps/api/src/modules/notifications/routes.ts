@@ -27,7 +27,8 @@ export default async function notificationsRoutes(app: FastifyInstance) {
     return { ok: true };
   });
   app.post("/notifications/push-subscribe", { preHandler: [app.authenticate] }, async (req) => {
-    const sub = z.object({ endpoint: z.string().url(), keys: z.object({ p256dh: z.string(), auth: z.string() }) }).parse(req.body);
+    const PUSH_HOSTS = [/(^|\.)fcm\.googleapis\.com$/, /(^|\.)push\.services\.mozilla\.com$/, /(^|\.)notify\.windows\.com$/, /(^|\.)push\.apple\.com$/];
+    const sub = z.object({ endpoint: z.string().url().max(2048).refine((u) => { try { const x = new URL(u); return x.protocol === "https:" && PUSH_HOSTS.some((r) => r.test(x.hostname)); } catch { return false; } }, { message: "push_endpoint_not_allowed" }), keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }) }).parse(req.body); // SSRF: сервер шлёт POST только известным push-шлюзам
     const cur = await db.selectFrom("notification_settings").select("push_subscriptions").where("user_id", "=", req.user!.id).executeTakeFirst();
     const subs = ((cur?.push_subscriptions as any[]) ?? []).filter((s) => s.endpoint !== sub.endpoint).concat([sub]).slice(-5);
     await db.insertInto("notification_settings").values({ user_id: req.user!.id, push_subscriptions: JSON.stringify(subs) }).onConflict((oc) => oc.column("user_id").doUpdateSet({ push_subscriptions: JSON.stringify(subs) })).execute();

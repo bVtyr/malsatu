@@ -5,6 +5,7 @@ import { ModerationDecisionSchema } from "@malsatu/shared";
 import { db } from "../../db/index.js";
 import { AppError } from "../../plugins/errors.js";
 import { notify } from "../../services/notifications.js";
+import { recomputeTrust } from "../../services/trust.js";
 
 export default async function moderationRoutes(app: FastifyInstance) {
   const mod = app.requirePermission("moderation:queue");
@@ -28,13 +29,15 @@ export default async function moderationRoutes(app: FastifyInstance) {
       await trx.updateTable("moderation_queue").set({ status: d.decision === "approve" ? "approved" : "rejected", resolved_at: now, assigned_to: req.user!.id }).where("id", "=", item.id).execute();
       if (d.decision === "approve") {
         const target = listing.status === "hidden_quarantine" ? "hidden_quarantine" : "active";
-        await trx.updateTable("listings").set({ status: target, status_before_quarantine: target === "hidden_quarantine" ? "active" : null, moderated_at: now, moderated_by: req.user!.id, reject_reason_code: null, reject_comment: null }).where("id", "=", listing.id).execute();
+        const upd = await trx.updateTable("listings").set({ status: target, status_before_quarantine: target === "hidden_quarantine" ? "active" : null, moderated_at: now, moderated_by: req.user!.id, reject_reason_code: null, reject_comment: null, published_at: now }).where("id", "=", listing.id).where("status", "in", ["pending_moderation", "hidden_quarantine"]).where("deleted_at", "is", null).executeTakeFirst();
+        if (!upd.numUpdatedRows) throw new AppError(409, "listing_no_longer_pending"); // владелец успел архивировать/удалить
       } else {
         await trx.updateTable("listings").set({ status: "rejected", moderated_at: now, moderated_by: req.user!.id, reject_reason_code: d.reasonCode!, reject_comment: d.comment ?? null }).where("id", "=", listing.id).execute();
-        await trx.updateTable("users").set((eb) => ({ trust_score: eb("trust_score", "-", 2) })).where("id", "=", listing.owner_user_id).execute();
+        await trx.updateTable("users").set((eb) => ({ trust_score: eb.fn("greatest", [eb("trust_score", "-", 2), eb.val(0)]) })).where("id", "=", listing.owner_user_id).execute();
       }
       await trx.insertInto("moderation_log").values({ moderator_id: req.user!.id, action: `listing.${d.decision}`, target_type: "listing", target_id: listing.id, reason_code: d.reasonCode ?? null, comment: d.comment ?? null }).execute();
     });
+    if (d.decision === "reject") await recomputeTrust(listing.owner_user_id).catch(() => undefined);
     const reason = d.reasonCode ? await db.selectFrom("reject_reasons").selectAll().where("code", "=", d.reasonCode).executeTakeFirst() : null;
     await notify({ userId: listing.owner_user_id, type: "moderation",
       titleRu: d.decision === "approve" ? "Объявление опубликовано" : "Объявление отклонено", titleKk: d.decision === "approve" ? "Хабарландыру жарияланды" : "Хабарландыру қабылданбады",

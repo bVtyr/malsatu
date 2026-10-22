@@ -9,8 +9,9 @@ import { track } from "../../plugins/audit.js";
 export default async function offersRoutes(app: FastifyInstance) {
   app.post("/offers", { preHandler: [app.requirePermission("offer:create")] }, async (req, reply) => {
     const o = OfferCreateSchema.parse(req.body);
-    const l = await db.selectFrom("listings").select(["id", "owner_user_id", "status", "quantity", "price_kzt"]).where("id", "=", o.listingId).executeTakeFirst();
-    if (!l || !["active", "reserved"].includes(l.status)) throw new AppError(404, "listing_not_found");
+    const l = await db.selectFrom("listings").select(["id", "owner_user_id", "status", "quantity", "price_kzt", "kind", "price_type"]).where("id", "=", o.listingId).executeTakeFirst();
+    if (!l || !["active", "reserved"].includes(l.status) || l.kind === "wanted") throw new AppError(404, "listing_not_found");
+    if (l.price_type === "per_lot" && o.quantity !== l.quantity) throw new AppError(400, "lot_sold_whole");
     if (l.owner_user_id === req.user!.id) throw new AppError(400, "cannot_offer_self");
     if (o.quantity > l.quantity) throw new AppError(400, "quantity_exceeds");
     const conv = await db.selectFrom("conversations").selectAll().where("listing_id", "=", l.id).where("buyer_id", "=", req.user!.id).executeTakeFirst()

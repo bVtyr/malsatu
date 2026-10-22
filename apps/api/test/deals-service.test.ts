@@ -12,12 +12,12 @@ function makeRepo() {
     async getListing(id) { return listings.get(id) ?? null; },
     async getSellerAccountType() { return "kh"; },
     async getCommissionRules() { return DEFAULT_COMMISSION_RULES; },
-    async getOffer(id) { return id === "offer-ok" ? { id, listingId: "l1", buyerId: "buyer", status: "accepted", priceKzt: 90_000, quantity: 50 } : null; },
+    async getOffer(id) { return id === "offer-ok" ? { id, listingId: "l1", buyerId: "buyer", status: "accepted", priceKzt: 90_000, quantity: 50, used: false } : null; },
     async insertDeal(d) { const rec = { ...d, id: `d${++seq}` }; deals.set(rec.id, rec); return rec; },
     async getDeal(id) { return deals.get(id) ?? null; },
-    async updateDeal(id, p) { const d = { ...deals.get(id)!, ...p }; deals.set(id, d); return d; },
+    async updateDeal(id, p, expect) { const cur = deals.get(id)!; if (cur.status !== expect) throw new DealError("invalid_transition"); const d = { ...cur, ...p }; deals.set(id, d); return d; },
     async addEvent(e) { events.push(e); },
-    async reduceListingQuantity(id, q) { listings.get(id)!.quantity -= q; },
+    async reduceListingQuantity(id, q) { const l = listings.get(id)!; if (l.quantity < q) return false; l.quantity -= q; return true; },
     async restoreListingQuantity(id, q) { listings.get(id)!.quantity += q; },
     async createPayment(p) { payments.push(p); return { id: "p1", status: "succeeded" }; },
     async refundPayment(dealId, amt) { refunds.push({ dealId, amt }); },
@@ -88,7 +88,7 @@ describe("DealsService", () => {
     await svc.pay(d.id, "buyer");
     await svc.act(d.id, "start_preparing", "seller", "seller");
     await svc.act(d.id, "arrive", "seller", "seller");
-    await svc.act(d.id, "open_dispute", "buyer", "buyer", { comment: "3 головы больные", evidence: ["m1"] });
+    await svc.act(d.id, "open_dispute", "buyer", "buyer", { comment: "3 головы больные, фото прилагаю", evidence: ["m1"] });
     expect(r.disputes).toHaveLength(1);
     const res = await svc.act(d.id, "resolve_refund", "arbiter", "arb");
     expect(res.status).toBe("refunded");
@@ -100,7 +100,7 @@ describe("DealsService", () => {
   it("partial refund splits money between buyer and seller minus commission", async () => {
     const d = await svc.create("buyer", { listingId: "l1", mode: "escrow", quantity: 10 }); // 950 000, комиссия 2% = 19 000
     await svc.pay(d.id, "buyer"); await svc.act(d.id, "start_preparing", "seller", "seller"); await svc.act(d.id, "arrive", "seller", "seller");
-    await svc.act(d.id, "open_dispute", "buyer", "buyer");
+    await svc.act(d.id, "open_dispute", "buyer", "buyer", { comment: "Две головы не соответствуют описанию" });
     await svc.act(d.id, "resolve_partial_refund", "arbiter", "arb", { refundKzt: 300_000 });
     expect(r.refunds[0]!.amt).toBe(300_000);
     expect(r.payouts[0]!.amountKzt).toBe(950_000 - 300_000 - 19_000);
@@ -116,6 +116,48 @@ describe("DealsService", () => {
     const direct = await svc.create("buyer", { listingId: "l1", mode: "direct", quantity: 1 });
     await expect(svc.pay(direct.id, "buyer")).rejects.toThrow(/direct_no_payment/);
     expect(direct.commissionKzt).toBe(0);
+  });
+
+  it("pay is idempotent: second payment attempt is rejected", async () => {
+    const d = await svc.create("buyer", { listingId: "l1", mode: "escrow", quantity: 2 });
+    await svc.pay(d.id, "buyer");
+    await expect(svc.pay(d.id, "buyer")).rejects.toThrow(/already_paid/);
+    expect(r.payments).toHaveLength(1);
+  });
+
+  it("offer quantity caps the deal quantity", async () => {
+    await expect(svc.create("buyer", { listingId: "l1", mode: "escrow", quantity: 1, offerId: "offer-ok" })).resolves.toBeTruthy();
+  });
+
+  it("reservation mode settles only the held prepayment", async () => {
+    const d = await svc.create("buyer", { listingId: "l1", mode: "reservation", quantity: 10 }); // 950 000, предоплата 190 000, комиссия 19 000
+    await svc.pay(d.id, "buyer"); await svc.act(d.id, "start_preparing", "seller", "seller"); await svc.act(d.id, "arrive", "seller", "seller");
+    await svc.act(d.id, "open_dispute", "buyer", "buyer", { comment: "Не те животные, что в объявлении" });
+    await svc.act(d.id, "resolve_for_seller", "arbiter", "arb");
+    expect(r.payouts[0]!.amountKzt).toBe(190_000 - 19_000);
+  });
+
+  it("partial refund must be within the held amount", async () => {
+    const d = await svc.create("buyer", { listingId: "l1", mode: "escrow", quantity: 1 });
+    await svc.pay(d.id, "buyer"); await svc.act(d.id, "start_preparing", "seller", "seller"); await svc.act(d.id, "arrive", "seller", "seller");
+    await svc.act(d.id, "open_dispute", "buyer", "buyer", { comment: "Животное хромает на обе ноги" });
+    await expect(svc.act(d.id, "resolve_partial_refund", "arbiter", "arb")).rejects.toThrow(/refund_amount_invalid/);
+    await expect(svc.act(d.id, "resolve_partial_refund", "arbiter", "arb", { refundKzt: 95_000 })).rejects.toThrow(/refund_amount_invalid/);
+  });
+
+  it("direct deals do not reserve stock and complete on seller confirm", async () => {
+    const d = await svc.create("buyer", { listingId: "l1", mode: "direct", quantity: 5 });
+    expect(r.listings.get("l1")!.quantity).toBe(50);
+    const done = await svc.act(d.id, "confirm", "seller", "seller");
+    expect(done.status).toBe("completed"); expect(r.payouts).toHaveLength(0);
+  });
+
+  it("concurrent confirm cannot pay twice (CAS)", async () => {
+    const d = await svc.create("buyer", { listingId: "l1", mode: "escrow", quantity: 1 });
+    await svc.pay(d.id, "buyer"); await svc.act(d.id, "start_preparing", "seller", "seller"); await svc.act(d.id, "arrive", "seller", "seller");
+    const results = await Promise.allSettled([svc.act(d.id, "confirm", "buyer", "buyer"), svc.act(d.id, "confirm", "buyer", "buyer")]);
+    expect(results.filter((x) => x.status === "fulfilled")).toHaveLength(1);
+    expect(r.payouts).toHaveLength(1);
   });
 
   it("forbids wrong actors", async () => {

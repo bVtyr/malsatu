@@ -25,7 +25,7 @@ export default async function ListingPage({ params }: { params: Promise<{ locale
     offers: data.listing.price_kzt ? { "@type": "Offer", priceCurrency: "KZT", price: data.listing.price_kzt, availability: data.listing.status === "active" ? "https://schema.org/InStock" : "https://schema.org/SoldOut" } : undefined,
   };
   return (<>
-    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
     <ListingDetail initial={data} category={cat.category} />
   </>);
 }

@@ -56,7 +56,8 @@ export const DEAL_TERMINAL: DealStatus[] = [
 /** Таблица переходов: статус → действие → (кто может, новый статус). */
 const TRANSITIONS: Record<DealStatus, Partial<Record<DealAction, { by: DealActor[]; to: DealStatus }>>> = {
   created: {
-    pay: { by: ["buyer", "system"], to: "paid" },
+    pay: { by: ["system"], to: "paid" }, // только после подтверждения платёжного провайдера
+    confirm: { by: ["seller"], to: "confirmed" }, // прямая договорённость: продавец отмечает, что передал товар
     cancel: { by: ["buyer", "seller", "admin"], to: "cancelled" },
   },
   paid: {
@@ -105,6 +106,7 @@ export function canTransition(deal: DealLike, action: DealAction, actor: DealAct
   if (!t) return false;
   if (!t.by.includes(actor)) return false;
   if (deal.mode === "direct" && action === "pay") return false; // прямая сделка — без оплаты через платформу
+  if (deal.mode !== "direct" && deal.status === "created" && action === "confirm") return false; // без оплаты подтверждать нечего
   return true;
 }
 
@@ -119,6 +121,7 @@ export function applyDealAction(
   if (!t) throw new DealTransitionError("invalid_transition", `Нельзя "${action}" из статуса "${deal.status}"`);
   if (!t.by.includes(actor)) throw new DealTransitionError("forbidden_actor", `Действие "${action}" недоступно для ${actor}`);
   if (deal.mode === "direct" && action === "pay") throw new DealTransitionError("direct_no_payment", "Прямая сделка не оплачивается через платформу");
+  if (deal.mode !== "direct" && deal.status === "created" && action === "confirm") throw new DealTransitionError("not_paid", "Сделка ещё не оплачена");
   if (action === "auto_confirm") {
     if (!inspectionWindowExpired(deal, now)) throw new DealTransitionError("window_open", "Окно осмотра ещё не истекло");
   }

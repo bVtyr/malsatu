@@ -5,6 +5,8 @@ import { AppError } from "../../plugins/errors.js";
 import { callMasking, MASK_TTL_MINUTES } from "../../services/calls.js";
 import { track } from "../../plugins/audit.js";
 import { z } from "zod";
+import crypto from "node:crypto";
+import { config } from "../../config.js";
 
 export default async function callsRoutes(app: FastifyInstance) {
   app.post<{ Params: { id: string } }>("/listings/:id/call", { config: { rateLimit: { max: 20, timeWindow: "1 hour" } }, preHandler: [app.authenticate] }, async (req) => {
@@ -25,7 +27,9 @@ export default async function callsRoutes(app: FastifyInstance) {
   });
 
   // Webhook телефонии: статус/длительность звонка
-  app.post("/webhooks/calls", async (req) => {
+  app.post("/webhooks/calls", { config: { rateLimit: { max: 600, timeWindow: "1 minute" } } }, async (req) => {
+    const given = String(req.headers["x-webhook-secret"] ?? ""); const want = config.CALL_WEBHOOK_SECRET ?? "";
+    if (!want || given.length !== want.length || !crypto.timingSafeEqual(Buffer.from(given), Buffer.from(want))) throw new AppError(403, "bad_webhook_secret");
     const b = z.object({ proxyNumber: z.string(), status: z.enum(["answered", "missed", "failed"]), durationSec: z.number().int().optional() }).parse(req.body);
     await db.updateTable("call_logs").set({ status: b.status, duration_sec: b.durationSec ?? null }).where("proxy_number", "=", b.proxyNumber).where("status", "=", "initiated").execute();
     return { ok: true };

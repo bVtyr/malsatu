@@ -20,8 +20,8 @@ async function hydrate(listings: any[], viewerId?: string | null) {
   const favSet = new Set(favs.map((f) => f.listing_id));
   const ownerMap = new Map(owners.map((o) => [o.id, o]));
   return listings.map((l) => {
-    const loc = l.address_hidden ? fuzzLocation({ lat: l.lat, lng: l.lng }, parseInt(l.id.slice(0, 2), 16) / 255) : { lat: l.lat, lng: l.lng };
-    const { search_vector: _sv, location: _loc, lat: _la, lng: _ln, ...rest } = l;
+    const loc = l.address_hidden ? { lat: l.public_lat ?? Math.round(l.lat * 100) / 100, lng: l.public_lng ?? Math.round(l.lng * 100) / 100 } : { lat: l.lat, lng: l.lng };
+    const { search_vector: _sv, location: _loc, lat: _la, lng: _ln, public_lat: _pa, public_lng: _pb, ...rest } = l;
     return { ...rest, approxLat: loc.lat, approxLng: loc.lng, media: media.filter((m) => m.listing_id === l.id), owner: ownerMap.get(l.owner_user_id) ?? null, isFavorite: favSet.has(l.id) };
   });
 }
@@ -34,7 +34,7 @@ export default async function listingsRoutes(app: FastifyInstance) {
     const viewer = req.user?.region_code ? await db.selectFrom("regions").select(["lat", "lng"]).where("code", "=", req.user.region_code).executeTakeFirst() : null;
     const q = buildSearchQuery(db, s, { regionCodes, viewer: viewer?.lat != null && viewer?.lng != null ? { lat: viewer.lat, lng: viewer.lng } : null });
     const rows = await q.execute();
-    const total = await db.selectFrom(buildSearchQuery(db, { ...s, page: 1, limit: 10_000 }, { regionCodes }).clearSelect().clearOrderBy().clearLimit().clearOffset().select("listings.id").as("t")).select((eb) => eb.fn.countAll<number>().as("n")).executeTakeFirst();
+    const total = await db.selectFrom(buildSearchQuery(db, { ...s, page: 1, limit: 1000 }, { regionCodes }).clearSelect().clearOrderBy().clearOffset().select("listings.id").as("t")).select((eb) => eb.fn.countAll<number>().as("n")).executeTakeFirst(); // потолок 1000: дальше показываем «1000+»
     return { items: await hydrate(rows, req.user?.id), page: s.page, limit: s.limit, total: Number(total?.n ?? 0) };
   });
 
@@ -44,10 +44,10 @@ export default async function listingsRoutes(app: FastifyInstance) {
     const zoom = Number((req.query as any).zoom ?? 6);
     const bbox = (req.query as any).bbox ? String((req.query as any).bbox).split(",").map(Number) : null; // minLng,minLat,maxLng,maxLat
     const regionCodes = s.region ? await regionSubtree(db, s.region) : null;
-    let q = buildSearchQuery(db, { ...s, page: 1, limit: 5000 }, { regionCodes }).clearSelect().select(["listings.id", "listings.lat", "listings.lng", "listings.price_kzt", "listings.price_type", "listings.title_ru", "listings.title_kk", "listings.category_code", "listings.address_hidden"]);
-    if (bbox && bbox.length === 4 && bbox.every(Number.isFinite)) q = q.where("listings.lng", ">=", bbox[0]!).where("listings.lat", ">=", bbox[1]!).where("listings.lng", "<=", bbox[2]!).where("listings.lat", "<=", bbox[3]!);
+    let q = buildSearchQuery(db, { ...s, page: 1, limit: 5000 }, { regionCodes }).clearSelect().select(["listings.id", "listings.lat", "listings.lng", "listings.public_lat", "listings.public_lng", "listings.price_kzt", "listings.price_type", "listings.title_ru", "listings.title_kk", "listings.category_code", "listings.address_hidden"]);
+    if (bbox && bbox.length === 4 && bbox.every(Number.isFinite)) q = q.where("listings.public_lng", ">=", bbox[0]!).where("listings.public_lat", ">=", bbox[1]!).where("listings.public_lng", "<=", bbox[2]!).where("listings.public_lat", "<=", bbox[3]!); // по размытой точке: границами bbox нельзя найти двор
     const rows = await q.execute();
-    const pts = rows.map((r) => ({ ...r, ...(r.address_hidden ? fuzzLocation({ lat: r.lat, lng: r.lng }, parseInt(r.id.slice(0, 2), 16) / 255) : { lat: r.lat, lng: r.lng }) }));
+    const pts = rows.map((r) => ({ ...r, lat: r.address_hidden ? r.public_lat : r.lat, lng: r.address_hidden ? r.public_lng : r.lng }));
     return { clusters: gridCluster(pts, zoom).map((c) => ({ lat: c.lat, lng: c.lng, count: c.count, items: c.items.map(({ lat, lng, id, price_kzt, price_type, title_ru, title_kk, category_code }) => ({ id, lat, lng, price_kzt, price_type, title_ru, title_kk, category_code })) })) };
   });
 
@@ -66,7 +66,11 @@ export default async function listingsRoutes(app: FastifyInstance) {
     const status = (req.query as any).status as string | undefined;
     let q = db.selectFrom("listings").selectAll().where("owner_user_id", "=", req.user!.id).where("deleted_at", "is", null).orderBy("updated_at", "desc").limit(200);
     if (status) q = q.where("status", "=", status);
-    return { items: await hydrate(await q.execute(), req.user!.id) };
+    const items = await hydrate(await q.execute(), req.user!.id);
+    // статистика одним запросом вместо N+1 с клиента
+    const dealCounts = items.length ? await db.selectFrom("deals").select(["listing_id", (eb) => eb.fn.countAll<number>().as("n")]).where("listing_id", "in", items.map((i: any) => i.id)).where("status", "=", "completed").groupBy("listing_id").execute() : [];
+    const dc = new Map(dealCounts.map((d) => [d.listing_id, Number(d.n)]));
+    return { items: items.map((l: any) => ({ ...l, stats: { views: l.views_count, favorites: l.favorites_count, calls: l.calls_count, messages: l.messages_count, offers: l.offers_count, deals: dc.get(l.id) ?? 0, conversion: l.views_count ? Math.round(((l.calls_count + l.messages_count) / l.views_count) * 1000) / 10 : 0 } })) };
   });
 
   app.get<{ Params: { id: string } }>("/listings/:id", async (req) => {
@@ -88,7 +92,7 @@ export default async function listingsRoutes(app: FastifyInstance) {
     let distanceKm: number | null = null, delivery: ReturnType<typeof estimateTransport> | null = null;
     const vq = req.query as any;
     const vl = vq.lat && vq.lng ? { lat: Number(vq.lat), lng: Number(vq.lng) } : req.user?.region_code ? await db.selectFrom("regions").select(["lat", "lng"]).where("code", "=", req.user.region_code).executeTakeFirst().then((r) => (r?.lat != null && r.lng != null ? { lat: r.lat, lng: r.lng } : null)) : null;
-    if (vl) { distanceKm = Math.round(haversineKm(vl, { lat: l.lat, lng: l.lng })); delivery = estimateTransport(l.kind === "meat" ? "refrigerator" : "livestock_truck", distanceKm, l.kind === "meat" ? { tons: Math.max(0.1, (l.quantity ?? 1) / 1000) } : { heads: l.quantity }); }
+    if (vl) { distanceKm = Math.max(5, Math.round(haversineKm(vl, { lat: l.public_lat, lng: l.public_lng }) / 5) * 5); delivery = estimateTransport(l.kind === "meat" ? "refrigerator" : "livestock_truck", distanceKm, l.kind === "meat" ? { tons: Math.max(0.1, (l.quantity ?? 1) / 1000) } : { heads: l.quantity }); }
     if (!isOwner) {
       await db.updateTable("listings").set((eb) => ({ views_count: eb("views_count", "+", 1) })).where("id", "=", l.id).execute();
       if (req.user) await db.insertInto("view_history").values({ user_id: req.user.id, listing_id: l.id }).onConflict((oc) => oc.columns(["user_id", "listing_id"]).doUpdateSet({ viewed_at: new Date() })).execute();
@@ -120,6 +124,7 @@ export default async function listingsRoutes(app: FastifyInstance) {
   app.delete<{ Params: { id: string } }>("/listings/:id", { preHandler: [app.authenticate] }, async (req) => {
     const r = await db.updateTable("listings").set({ status: "archived", deleted_at: new Date() }).where("id", "=", req.params.id).where("owner_user_id", "=", req.user!.id).executeTakeFirst();
     if (!r.numUpdatedRows) throw new AppError(404, "listing_not_found");
+    await db.updateTable("moderation_queue").set({ status: "rejected", resolved_at: new Date() }).where("listing_id", "=", req.params.id).where("status", "=", "pending").execute();
     return { ok: true };
   });
 
@@ -137,6 +142,7 @@ export default async function listingsRoutes(app: FastifyInstance) {
   app.post("/listings/bulk", { preHandler: [app.requirePermission("listing:create")] }, async (req) => {
     const { csv } = z.object({ csv: z.string().max(2_000_000) }).parse(req.body);
     const lines = csv.split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length > 501) throw new AppError(400, "csv_too_many_rows", undefined, { max: 500 });
     const header = lines.shift()!.split(";").map((h) => h.trim());
     const results: Array<{ row: number; id?: string; error?: string }> = [];
     for (let i = 0; i < lines.length; i++) {

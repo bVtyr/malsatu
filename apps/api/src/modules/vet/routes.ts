@@ -8,6 +8,8 @@ import { notify } from "../../services/notifications.js";
 export default async function vetRoutes(app: FastifyInstance) {
   app.post("/vet/requests", { preHandler: [app.authenticate] }, async (req, reply) => {
     const p = z.object({ listingId: z.string().uuid().optional(), dealId: z.string().uuid().optional(), scheduledAt: z.string().datetime().optional() }).parse(req.body);
+    if (p.dealId) { const d = await db.selectFrom("deals").select(["buyer_id", "seller_id"]).where("id", "=", p.dealId).executeTakeFirst(); if (!d || (d.buyer_id !== req.user!.id && d.seller_id !== req.user!.id)) throw new AppError(403, "not_participant"); }
+    if (p.listingId) { const l = await db.selectFrom("listings").select("status").where("id", "=", p.listingId).executeTakeFirst(); if (!l || !["active", "reserved"].includes(l.status)) throw new AppError(404, "listing_not_found"); }
     const row = await db.insertInto("vet_requests").values({ requester_id: req.user!.id, listing_id: p.listingId ?? null, deal_id: p.dealId ?? null, scheduled_at: p.scheduledAt ?? null }).returningAll().executeTakeFirstOrThrow();
     // назначение: ветеринары, работающие в области объявления
     if (p.listingId) {
@@ -23,6 +25,8 @@ export default async function vetRoutes(app: FastifyInstance) {
     return { items: await (isVet ? q.where((eb) => eb.or([eb("vet_id", "=", req.user!.id), eb("status", "=", "new")])) : q.where("requester_id", "=", req.user!.id)).execute() };
   });
   app.post<{ Params: { id: string } }>("/vet/requests/:id/accept", { preHandler: [app.requirePermission("vet:requests")] }, async (req) => {
+    const prof = await db.selectFrom("vet_profiles").select("verified").where("user_id", "=", req.user!.id).executeTakeFirst();
+    if (!prof?.verified) throw new AppError(403, "vet_not_verified");
     const { scheduledAt, priceKzt } = z.object({ scheduledAt: z.string().datetime(), priceKzt: z.number().int().positive() }).parse(req.body);
     const r = await db.updateTable("vet_requests").set({ vet_id: req.user!.id, status: "scheduled", scheduled_at: scheduledAt, price_kzt: priceKzt }).where("id", "=", req.params.id).where("status", "=", "new").returningAll().executeTakeFirst();
     if (!r) throw new AppError(404, "request_not_found");
@@ -39,8 +43,8 @@ export default async function vetRoutes(app: FastifyInstance) {
   app.put("/vet/profile", { preHandler: [app.authenticate] }, async (req) => {
     const p = z.object({ licenseNo: z.string(), regions: z.array(z.string()), services: z.array(z.string()).default([]), priceInspectionKzt: z.number().int().optional() }).parse(req.body);
     const row = { user_id: req.user!.id, license_no: p.licenseNo, regions: p.regions, services: p.services, price_inspection_kzt: p.priceInspectionKzt ?? null };
-    await db.insertInto("vet_profiles").values(row).onConflict((oc) => oc.column("user_id").doUpdateSet(row)).execute();
-    if (!req.user!.roles.includes("vet")) await db.updateTable("users").set({ roles: [...req.user!.roles, "vet"] }).where("id", "=", req.user!.id).execute();
-    return { ok: true };
+    await db.insertInto("vet_profiles").values({ ...row, verified: false }).onConflict((oc) => oc.column("user_id").doUpdateSet({ ...row, verified: false })).execute();
+    // роль vet выдаёт администратор после проверки лицензии (PATCH /admin/users/:id); самоназначение запрещено
+    return { ok: true, pendingVerification: true };
   });
 }

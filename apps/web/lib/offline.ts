@@ -3,19 +3,20 @@ const DB = "malsatu", STORE = "drafts";
 function open(): Promise<IDBDatabase> {
   return new Promise((res, rej) => { const r = indexedDB.open(DB, 1); r.onupgradeneeded = () => r.result.createObjectStore(STORE, { keyPath: "clientDraftId" }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
 }
-export interface Draft { clientDraftId: string; payload: any; photos: Array<{ name: string; blob: Blob }>; createdAt: number; status: "pending" | "sending" | "sent" | "error"; error?: string; listingId?: string }
+export interface Draft { clientDraftId: string; ownerId: string; payload: any; photos: Array<{ name: string; blob: Blob }>; createdAt: number; status: "pending" | "sending" | "sent" | "error"; error?: string; listingId?: string }
 
 export async function saveDraft(d: Draft) { const db = await open(); await new Promise<void>((res, rej) => { const tx = db.transaction(STORE, "readwrite"); tx.objectStore(STORE).put(d); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); }); try { const reg = await navigator.serviceWorker?.ready; await (reg as any)?.sync?.register("sync-drafts"); } catch { /* no bg sync */ } }
-export async function listDrafts(): Promise<Draft[]> { const db = await open(); return new Promise((res, rej) => { const r = db.transaction(STORE).objectStore(STORE).getAll(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
+/** Черновики только текущего владельца: на общем телефоне чужие черновики не видны и не отправляются под чужим аккаунтом. */
+export async function listDrafts(ownerId: string): Promise<Draft[]> { const db = await open(); return new Promise((res, rej) => { const r = db.transaction(STORE).objectStore(STORE).getAll(); r.onsuccess = () => res((r.result as Draft[]).filter((d) => d.ownerId === ownerId)); r.onerror = () => rej(r.error); }); }
 export async function deleteDraft(id: string) { const db = await open(); await new Promise<void>((res) => { const tx = db.transaction(STORE, "readwrite"); tx.objectStore(STORE).delete(id); tx.oncomplete = () => res(); }); }
 
 /** Отправка всех pending-черновиков. Идемпотентно благодаря clientDraftId на сервере. */
-export async function syncDrafts(send: (d: Draft) => Promise<string>) {
-  if (!navigator.onLine) return;
-  for (const d of await listDrafts()) {
+export async function syncDrafts(send: (d: Draft) => Promise<string>, ownerId: string | null | undefined) {
+  if (!navigator.onLine || !ownerId) return;
+  for (const d of await listDrafts(ownerId)) {
     if (d.status !== "pending" && d.status !== "error") continue;
-    try { d.status = "sending"; await saveDraft(d); d.listingId = await send(d); d.status = "sent"; await saveDraft(d); }
-    catch (e: any) { d.status = "error"; d.error = e?.message; await saveDraft(d); }
+    try { d.status = "sending"; await saveDraft(d); d.listingId = await send(d); await deleteDraft(d.clientDraftId); }
+    catch (e: any) { d.status = "error"; d.error = e?.code ?? e?.message; await saveDraft(d); }
   }
 }
 

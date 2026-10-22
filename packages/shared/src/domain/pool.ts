@@ -64,6 +64,8 @@ export function reserveShare(pool: PoolLike, userId: string, fraction: ShareFrac
 }
 
 export function payShare(pool: PoolLike, shareId: string, now = new Date()): PoolShare {
+  if (pool.status !== "open") throw new PoolError("pool_not_open", "Сбор закрыт");
+  if (now > pool.deadline) throw new PoolError("deadline_passed", "Срок сбора истёк");
   const s = pool.shares.find((x) => x.id === shareId);
   if (!s) throw new PoolError("share_not_found", "Доля не найдена");
   if (s.status !== "reserved") throw new PoolError("share_not_reserved", "Доля не в статусе брони");

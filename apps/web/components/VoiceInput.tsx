@@ -1,13 +1,13 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Mic } from "./Icons";
 import { useI18n } from "@/lib/i18n";
 /** Голосовой ввод (Web Speech API, kk-KZ / ru-RU). Без поддержки кнопка не показывается. */
 export function VoiceInput({ onText }: { onText: (text: string) => void }) {
   const { locale, t } = useI18n();
-  const [rec, setRec] = useState(false);
+  const [rec, setRec] = useState(false); const [SR, setSR] = useState<any>(null);
   const ref = useRef<any>(null);
-  const SR = typeof window !== "undefined" ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition : null;
+  useEffect(() => { setSR((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null); }, []);
   if (!SR) return null;
   const toggle = () => {
     if (rec) { ref.current?.stop(); setRec(false); return; }

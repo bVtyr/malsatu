@@ -23,12 +23,19 @@ const JOBS: Array<{ name: string; everyMs: number; run: () => Promise<unknown> }
   { name: "pool-deadlines", everyMs: 10 * 60_000, run: () => settlePoolDeadlines() },
   { name: "offers-expire", everyMs: 10 * 60_000, run: () => db.updateTable("offers").set({ status: "expired" }).where("status", "=", "pending").where("expires_at", "<", new Date()).execute() },
   { name: "otp-cleanup", everyMs: 60 * 60_000, run: () => sql`DELETE FROM otp_codes WHERE created_at < now() - interval '1 day'`.execute(db) },
-  { name: "notifications-quiet-hours", everyMs: 5 * 60_000, run: async () => { const rows = await db.selectFrom("notifications").select("id").where("sent_at", "is", null).where("created_at", "<", new Date(Date.now() - 60_000)).limit(500).execute(); for (const r of rows) await deliver(r.id); } },
+  { name: "notifications-quiet-hours", everyMs: 5 * 60_000, run: async () => { const rows = await db.selectFrom("notifications").select("id").where("sent_at", "is", null).where("created_at", "<", new Date(Date.now() - 60_000)).limit(500).execute(); let sent = 0; for (const r of rows) if (await deliver(r.id)) sent++; return { sent, pending: rows.length - sent }; } },
 ];
 
 export function startJobs(log: Logger) {
   for (const j of JOBS) {
-    const tick = async () => { try { const r = await j.run(); log.info({ job: j.name, result: r }, "job done"); } catch (e) { log.error({ job: j.name, err: e }, "job failed"); } };
+    // advisory lock: при нескольких репликах API тик выполняет только одна (двойные возвраты/выплаты исключены)
+    const tick = async () => {
+      const lock = await sql<{ ok: boolean }>`SELECT pg_try_advisory_lock(hashtext(${"job:" + j.name})) AS ok`.execute(db);
+      if (!lock.rows[0]?.ok) return;
+      try { const r = await j.run(); log.info({ job: j.name, result: r }, "job done"); }
+      catch (e) { log.error({ job: j.name, err: e }, "job failed"); }
+      finally { await sql`SELECT pg_advisory_unlock(hashtext(${"job:" + j.name}))`.execute(db).catch(() => undefined); }
+    };
     setTimeout(tick, 15_000 + Math.random() * 10_000);
     setInterval(tick, j.everyMs).unref();
   }

@@ -18,4 +18,4 @@ export function useI18n() {
     href: (p: string) => `/${locale}${p.startsWith("/") ? p : `/${p}`}`,
   };
 }
-export const isLocale = (s: string): s is Locale => s === "kk" || s === "ru";
+export { isLocale } from "./locale";

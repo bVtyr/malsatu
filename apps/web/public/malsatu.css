@@ -23,6 +23,7 @@
 
   --font-display: "Unbounded", "Arial Black", system-ui, sans-serif;
   --font-ui: "Golos Text", "Inter", system-ui, sans-serif;
+  /* в Next.js next/font переопределяет эти переменные на self-hosted шрифты */
 
   --fs-12: 0.75rem; --fs-14: 0.875rem; --fs-16: 1rem; --fs-18: 1.125rem; --fs-22: 1.375rem; --fs-28: 1.75rem; --fs-36: 2.25rem; --fs-48: 3rem;
   --fs-hero: clamp(2.5rem, 2rem + 6vw, 7rem);

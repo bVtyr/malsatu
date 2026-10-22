@@ -62,6 +62,8 @@ describe("search synonyms", () => {
   });
   it("builds tsquery", () => {
     expect(toTsQuery("казы")).toContain("(қазы:*)");
+    expect(toTsQuery("лошадь")).not.toContain("ат:*"); // короткий синоним без префикса
+    expect(toTsQuery("лошадь")).toContain("(ат)");
     expect(toTsQuery("")).toBe("");
   });
 });
@@ -72,6 +74,8 @@ describe("phone", () => {
     expect(normalizeKzPhone("+7 701 123 45 67")).toBe("+77011234567");
     expect(normalizeKzPhone("7011234567")).toBe("+77011234567");
     expect(normalizeKzPhone("12345")).toBeNull();
+    expect(normalizeKzPhone("+79161234567")).toBeNull(); // не казахстанский мобильный
+    expect(normalizeKzPhone("8011234567")).toBeNull();
   });
   it("masks", () => expect(maskPhone("+77011234567")).toBe("+7 701 ***-**-67"));
 });

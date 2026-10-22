@@ -5,6 +5,11 @@ export const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? API_URL.replace(/^http/,
 export class ApiError extends Error { constructor(public status: number, public code: string, public details?: unknown) { super(code); } }
 
 export function getToken(): string | null { try { return typeof window !== "undefined" ? localStorage.getItem("malsatu_token") : null; } catch { return null; } }
+/** Разрешаем только внутренние пути для ?next= (защита от открытого редиректа). */
+export function safeNext(next: string | null | undefined, fallback = "/"): string {
+  if (!next || !next.startsWith("/") || next.startsWith("//") || next.includes("\\") || /^\/(kk|ru)?\/*(https?:)/i.test(next)) return fallback;
+  return next.replace(/^\/(kk|ru)(?=\/|$)/, "") || "/";
+}
 export function setToken(t: string | null) { try { t ? localStorage.setItem("malsatu_token", t) : localStorage.removeItem("malsatu_token"); } catch { /* private mode */ } }
 
 export async function api<T = any>(path: string, opts: { method?: string; body?: unknown; query?: Record<string, unknown>; token?: string | null; timeoutMs?: number; cache?: RequestCache; next?: { revalidate?: number } } = {}): Promise<T> {
@@ -16,8 +21,8 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
   try {
     const res = await fetch(url, {
       method: opts.method ?? (opts.body ? "POST" : "GET"),
-      headers: { ...(opts.body ? { "content-type": "application/json" } : {}), ...(token ? { authorization: `Bearer ${token}` } : {}) },
-      body: opts.body ? JSON.stringify(opts.body) : undefined, signal: ctrl.signal, cache: opts.cache, ...(opts.next ? { next: opts.next } : {}),
+      headers: { "x-requested-with": "MalSatu", ...(opts.body ? { "content-type": "application/json" } : {}), ...(token ? { authorization: `Bearer ${token}` } : {}) },
+      body: opts.body ? JSON.stringify(opts.body) : undefined, signal: ctrl.signal, cache: opts.cache, credentials: "include", ...(opts.next ? { next: opts.next } : {}),
     } as RequestInit);
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new ApiError(res.status, json?.error?.code ?? `http_${res.status}`, json?.error?.details);
@@ -27,8 +32,12 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
 
 export async function uploadMedia(file: File | Blob, filename = "photo.webp"): Promise<{ media: any; duplicateOf: string | null }> {
   const fd = new FormData(); fd.append("file", file, filename);
-  const res = await fetch(`${API_URL}/api/v1/media/upload`, { method: "POST", headers: { authorization: `Bearer ${getToken()}` }, body: fd });
-  const json = await res.json();
+  const token = getToken();
+  if (!token) throw new ApiError(401, "unauthorized");
+  const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 120_000);
+  let res: Response;
+  try { res = await fetch(`${API_URL}/api/v1/media/upload`, { method: "POST", headers: { authorization: `Bearer ${token}`, "x-requested-with": "MalSatu" }, body: fd, signal: ctrl.signal, credentials: "include" }); } finally { clearTimeout(timer); }
+  const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, json?.error?.code ?? "upload_failed");
   return json;
 }

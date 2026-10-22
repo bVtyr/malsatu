@@ -17,7 +17,10 @@ export default async function cmsRoutes(app: FastifyInstance) {
   });
 
   // SEO: sitemap с человекочитаемыми адресами «регион/категория» на двух языках
+  let sitemapCache: { at: number; xml: string } | null = null;
   app.get("/sitemap.xml", async (_req, reply) => {
+    reply.header("content-type", "application/xml").header("cache-control", "public, max-age=3600");
+    if (sitemapCache && Date.now() - sitemapCache.at < 3600_000) return sitemapCache.xml;
     const [regions, cats, listings] = await Promise.all([
       db.selectFrom("regions").select(["slug_ru", "slug_kk"]).where("parent_code", "is", null).where("enabled", "=", true).execute(),
       db.selectFrom("categories").select(["slug_ru", "slug_kk"]).where("enabled", "=", true).execute(),
@@ -27,7 +30,8 @@ export default async function cmsRoutes(app: FastifyInstance) {
     const urls: string[] = [];
     for (const r of regions) for (const c of cats) { urls.push(`${base}/ru/${r.slug_ru}/${c.slug_ru}`); urls.push(`${base}/kk/${r.slug_kk}/${c.slug_kk}`); }
     for (const l of listings) { urls.push(`${base}/ru/listing/${l.id}`); urls.push(`${base}/kk/listing/${l.id}`); }
-    reply.header("content-type", "application/xml").header("cache-control", "public, max-age=3600");
-    return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${u}</loc></url>`).join("\n")}\n</urlset>`;
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${u}</loc></url>`).join("\n")}\n</urlset>`;
+    sitemapCache = { at: Date.now(), xml };
+    return xml;
   });
 }

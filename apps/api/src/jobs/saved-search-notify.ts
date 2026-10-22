@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import { ListingSearchSchema } from "@malsatu/shared";
 import { db } from "../db/index.js";
 import { buildSearchQuery, regionSubtree } from "../modules/listings/repo.js";
@@ -20,6 +21,8 @@ export async function notifySavedSearches() {
   // «Куплю»: продавцам региона с активными объявлениями той же категории — уведомление о новых запросах за последние 15 минут
   const wanted = await db.selectFrom("listings").selectAll().where("kind", "=", "wanted").where("status", "=", "active").where("published_at", ">", new Date(Date.now() - 15 * 60_000)).execute();
   for (const w of wanted) {
+    const already = await db.selectFrom("notifications").select("id").where("type", "=", "saved_search").where(sql<boolean>`data->>'listingId' = ${w.id}`).executeTakeFirst();
+    if (already) continue; // уже рассылали: перезапуск job не дублирует
     const sellers = await db.selectFrom("listings").select("owner_user_id").distinct().where("kind", "!=", "wanted").where("status", "=", "active").where("category_code", "=", w.category_code).where("top_region_code", "=", w.top_region_code).where("owner_user_id", "!=", w.owner_user_id).limit(200).execute();
     for (const sl of sellers) { await notify({ userId: sl.owner_user_id, type: "saved_search", titleRu: "Новый запрос «Куплю» в вашем регионе", titleKk: "Сіздің аймағыңызда жаңа «Сатып аламын» сұранысы", bodyRu: w.title_ru ?? "", bodyKk: w.title_kk ?? "", data: { listingId: w.id } }); sent++; }
   }

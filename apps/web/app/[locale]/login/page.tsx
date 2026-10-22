@@ -1,7 +1,7 @@
 "use client";
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { api, setToken } from "@/lib/api";
+import { api, setToken, safeNext } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { formatKzPhone } from "@malsatu/shared";
@@ -10,7 +10,7 @@ function LoginInner() {
   const { t, href, locale } = useI18n(); const { refresh } = useAuth(); const router = useRouter(); const sp = useSearchParams();
   const [phone, setPhone] = useState("+7"); const [code, setCode] = useState(""); const [stage, setStage] = useState<"phone" | "code" | "profile">("phone"); const [err, setErr] = useState<string | null>(null); const [dev, setDev] = useState<string | null>(null);
   const [profile, setProfile] = useState({ displayName: "", accountType: "individual" });
-  const next = sp.get("next") ?? "/";
+  const next = safeNext(sp.get("next"));
   const request = async () => { setErr(null); try { const r = await api("/auth/otp/request", { body: { phone } }); setDev(r.devCode ?? null); setStage("code"); } catch (e: any) { setErr((t.errors as any)[e.code === "validation" ? "invalidPhone" : e.code === "otp_cooldown" ? "rateLimited" : "network"] ?? e.code); } };
   const verify = async () => { setErr(null); try { const r = await api("/auth/otp/verify", { body: { phone, code } }); setToken(r.token); await refresh(); if (r.isNew) setStage("profile"); else router.replace(href(next)); } catch (e: any) { setErr(e.code === "otp_invalid" ? t.errors.otpInvalid : e.code === "otp_expired" ? t.errors.otpExpired : e.code); } };
   const saveProfile = async () => { await api("/users/me", { method: "PATCH", body: { ...profile, locale } }); await refresh(); router.replace(href(next)); };

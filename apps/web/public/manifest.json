@@ -15,7 +15,8 @@
     { "src": "/icons/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
   ],
   "shortcuts": [
-    { "name": "Подать объявление", "url": "/ru/new" },
-    { "name": "Чаты", "url": "/ru/chat" }
+    { "name": "Подать объявление", "url": "/new" },
+    { "name": "Хабарландыру беру", "url": "/kk/new" },
+    { "name": "Чаты", "url": "/chat" }
   ]
 }

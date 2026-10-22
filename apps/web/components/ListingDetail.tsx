@@ -44,7 +44,7 @@ export function ListingDetail({ initial, category }: { initial: any; category: a
     <>
       {l.quarantine_flagged && <div className="notice notice--red"><Warning />{t.listing.quarantineFlag}{l.quarantineZones?.map((z: any) => `: ${name(z)}`).join("")}</div>}
       <div className="gallery bleed" onScroll={(e) => setSlide(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}>
-        {(l.media ?? []).map((m: any) => m.kind === "video" ? <video key={m.id} src={m.url} controls playsInline preload="metadata" /> : <img key={m.id} src={m.url} alt="" />)}
+        {(l.media ?? []).map((m: any, i: number) => m.kind === "video" ? <video key={m.id} src={m.url} controls playsInline preload="metadata" /> : <img key={m.id} src={m.url} alt={`${lf(l, "title")}, ${i + 1}`} />)}
       </div>
       <div className="dots" aria-hidden="true">{(l.media ?? []).map((_: any, i: number) => <span key={i} className={i === slide ? "is-on" : ""} />)}</div>
       <div>

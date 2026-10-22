@@ -36,7 +36,7 @@ describe("listing search query builder", () => {
   it("full-text search expands kk/ru synonyms into tsquery and trigram fallback", () => {
     const { sql, parameters } = buildSearchQuery(db, ListingSearchSchema.parse({ q: "қой" })).compile();
     expect(sql).toContain("to_tsquery('simple'");
-    expect(sql).toContain("similarity(");
+    expect(sql).toContain(" % ");
     const ts = parameters.find((p) => typeof p === "string" && p.includes(":*")) as string;
     expect(ts).toContain("овца:*");
     expect(ts).toContain("баран:*");

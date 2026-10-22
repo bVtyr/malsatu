@@ -37,14 +37,14 @@ export const ListingUpsertSchema = z.object({
   descriptionKk: z.string().max(5000).optional(),
   sourceLocale: z.enum(["kk", "ru"]).default("ru"),
   priceType: PriceTypeSchema,
-  priceKzt: z.number().int().positive().nullable().optional(),
+  priceKzt: z.number().int().positive().max(1_000_000_000_000).nullable().optional(),
   bargain: z.boolean().default(false),
-  quantity: z.number().int().positive().default(1),
+  quantity: z.number().int().positive().max(1_000_000).default(1),
   isLot: z.boolean().default(false),
   avgWeightKg: z.number().positive().nullable().optional(),
   weightMinKg: z.number().positive().nullable().optional(),
   weightMaxKg: z.number().positive().nullable().optional(),
-  attributes: z.record(z.string(), z.any()).default({}),
+  attributes: z.record(z.string().max(64), z.any()).default({}).refine((a) => JSON.stringify(a).length <= 20_000, { message: "attributes_too_large" }),
   tagNumbers: z.array(z.string().min(3).max(40)).max(5000).default([]),
   regionCode: z.string().min(1),
   lat: z.number().min(40).max(56),
@@ -87,6 +87,7 @@ export const ListingSearchSchema = z.object({
   escrow: BoolQuery,
   withVideo: BoolQuery,
   publishedSince: z.string().datetime().optional(),
+  owner: z.string().uuid().optional(),
   sort: z.enum(["new", "cheap", "expensive", "near", "rating", "per_kg"]).default("new"),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
@@ -100,7 +101,7 @@ export const MessageSchema = z.object({
   lat: z.number().optional(), lng: z.number().optional(),
 }).refine((m) => m.text || m.mediaId || m.kind === "location", { message: "empty_message" });
 
-export const OfferCreateSchema = z.object({ listingId: z.string().uuid(), priceKzt: z.number().int().positive(), quantity: z.number().int().positive().default(1), comment: z.string().max(500).optional() });
+export const OfferCreateSchema = z.object({ listingId: z.string().uuid(), priceKzt: z.number().int().positive().max(1_000_000_000_000), quantity: z.number().int().positive().max(1_000_000).default(1), comment: z.string().max(500).optional() });
 export const OfferActSchema = z.object({ action: z.enum(["accept", "reject", "counter", "withdraw"]), counterPriceKzt: z.number().int().positive().optional() });
 
 export const SavedSearchSchema = z.object({ name: z.string().min(1).max(80), query: ListingSearchSchema.partial(), notify: z.boolean().default(true) });
@@ -120,7 +121,7 @@ export const QuarantineZoneSchema = z.object({
 }).refine((v) => (v.centerLat != null && v.centerLng != null && v.radiusKm != null) || !!v.polygon, { message: "geometry_required" });
 
 export const DealCreateSchema = z.object({
-  listingId: z.string().uuid(), mode: z.enum(["direct", "reservation", "escrow"]), quantity: z.number().int().positive().default(1),
+  listingId: z.string().uuid(), mode: z.enum(["direct", "reservation", "escrow"]), quantity: z.number().int().positive().max(1_000_000).default(1),
   offerId: z.string().uuid().optional(), deliveryOption: DeliveryOptionSchema.default("pickup"), deliveryAddressId: z.string().uuid().optional(),
 });
-export const DealActionSchema = z.object({ action: z.enum(["pay", "start_preparing", "ship", "arrive", "confirm", "cancel", "open_dispute"]), evidenceMediaIds: z.array(z.string().uuid()).optional(), comment: z.string().max(2000).optional() });
+export const DealActionSchema = z.object({ action: z.enum(["start_preparing", "ship", "arrive", "confirm", "cancel", "open_dispute"]), evidenceMediaIds: z.array(z.string().uuid()).optional(), comment: z.string().max(2000).optional() });

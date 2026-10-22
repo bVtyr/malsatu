@@ -41,9 +41,9 @@ export interface ListingsTable {
   title_ru: string | null; title_kk: string | null; description_ru: string | null; description_kk: string | null; source_locale: Generated<string>; auto_translated: Generated<boolean>;
   price_type: string; price_kzt: number | null; price_per_kg_kzt: number | null; bargain: Generated<boolean>; quantity: Generated<number>; initial_quantity: Generated<number>; is_lot: Generated<boolean>;
   avg_weight_kg: number | null; weight_min_kg: number | null; weight_max_kg: number | null; attributes: Json<Record<string, unknown>>;
-  region_code: string; top_region_code: string; lat: number; lng: number; location: ColumnType<string, never, never>; address_hidden: Generated<boolean>; address_text: string | null;
+  region_code: string; top_region_code: string; lat: number; lng: number; public_lat: Generated<number>; public_lng: Generated<number>; location: ColumnType<string, never, never>; address_hidden: Generated<boolean>; address_text: string | null;
   delivery_options: Generated<string[]>; escrow_available: Generated<boolean>; has_video: Generated<boolean>; has_docs: Generated<boolean>; has_tags: Generated<boolean>; halal: Generated<boolean>;
-  quarantine_flagged: Generated<boolean>; quarantine_zone_ids: Generated<string[]>; status_before_quarantine: string | null; needed_by: TsNullable;
+  quarantine_flagged: Generated<boolean>; quarantine_zone_ids: Generated<string[]>; status_before_quarantine: string | null; manual_reserved: Generated<boolean>; needed_by: TsNullable;
   published_at: TsNullable; expires_at: TsNullable; moderated_at: TsNullable; moderated_by: string | null; reject_reason_code: string | null; reject_comment: string | null;
   views_count: Generated<number>; favorites_count: Generated<number>; calls_count: Generated<number>; messages_count: Generated<number>; offers_count: Generated<number>;
   promoted_until: TsNullable; promotion_type: string | null; search_vector: ColumnType<string | null, never, never>; client_draft_id: string | null;

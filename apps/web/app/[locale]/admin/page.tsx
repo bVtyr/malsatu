@@ -9,7 +9,7 @@ export default function AdminPage() {
   const { t, money, href, locale } = useI18n(); const { user } = useAuth();
   const [d, setD] = useState<any>(null); const [days, setDays] = useState(30); const [users, setUsers] = useState<any[]>([]); const [q, setQ] = useState("");
   useEffect(() => { if (hasRole(user, "admin", "moderator", "arbiter", "finance")) api("/admin/dashboard", { query: { days } }).then(setD); }, [user, days]);
-  useEffect(() => { if (hasRole(user, "admin", "moderator")) api("/admin/users", { query: { q } }).then((r) => setUsers(r.items)).catch(() => undefined); }, [user, q]);
+  useEffect(() => { if (!hasRole(user, "admin", "moderator")) return; const h = setTimeout(() => api("/admin/users", { query: { q } }).then((r) => setUsers(r.items)).catch(() => undefined), 300); return () => clearTimeout(h); }, [user?.id, q]);
   if (!hasRole(user, "admin", "moderator", "arbiter", "finance")) return <p className="sub">403</p>;
   const block = async (id: string, isBlocked: boolean) => { await api(`/admin/users/${id}`, { method: "PATCH", body: { isBlocked: !isBlocked, blockedReason: "admin" } }); api("/admin/users", { query: { q } }).then((r) => setUsers(r.items)); };
   return <>

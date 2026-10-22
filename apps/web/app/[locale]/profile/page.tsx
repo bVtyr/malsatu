@@ -17,14 +17,15 @@ function ProfileInner() {
   useEffect(() => { if (!loading && !user) router.replace(href("/login?next=/profile")); }, [user, loading]);
   useEffect(() => {
     if (!user) return;
-    if (tab === "listings") { api("/users/me/listings").then((r) => { setListings(r.items); r.items.slice(0, 20).forEach((l: any) => api(`/listings/${l.id}/stats`).then((s) => setStats((x) => ({ ...x, [l.id]: s.stats }))).catch(() => undefined)); }); listDrafts().then(setDrafts).catch(() => undefined); }
+    if (tab === "listings") { api("/users/me/listings").then((r) => { setListings(r.items); setStats(Object.fromEntries(r.items.map((l: any) => [l.id, l.stats]))); }); listDrafts(user.id).then(setDrafts).catch(() => undefined); }
     if (tab === "deals") api("/deals").then((r) => setDeals(r.items));
     if (tab === "offers") api("/offers").then((r) => setOffers(r.items));
     if (tab === "saved") api("/saved-searches").then((r) => setSaved(r.items));
     if (tab === "sogym") api("/users/me/pool-shares").then((r) => setShares(r.items));
   }, [user, tab]);
   if (!user) return null;
-  const setStatus = async (id: string, status: string) => { let soldQty: number | undefined; if (status === "sold") { const v = prompt(locale === "kk" ? "Қанша бас сатылды? Бәрі болса, бос қалдырыңыз" : "Сколько голов продано? Если все, оставьте пустым"); if (v) soldQty = Number(v); } await api(`/listings/${id}/status`, { body: { status, soldQty } }); api("/users/me/listings").then((r) => setListings(r.items)); };
+  const [soldFor, setSoldFor] = useState<{ id: string; qty: string } | null>(null);
+  const setStatus = async (id: string, status: string, soldQty?: number) => { await api(`/listings/${id}/status`, { body: { status, soldQty } }); setSoldFor(null); api("/users/me/listings").then((r) => setListings(r.items)); };
   const act = async (id: string, action: string) => { await api(`/offers/${id}`, { body: { action } }); api("/offers").then((r) => setOffers(r.items)); };
   const tabs = [["listings", t.admin.listings], ["deals", t.admin.deals], ["offers", t.offer.title], ["saved", t.filters.saveSearch], ["sogym", t.home.sogym], ["settings", locale === "kk" ? "Баптаулар" : "Настройки"]];
   return (
@@ -32,17 +33,18 @@ function ProfileInner() {
       <div className="profile-head"><span className="avatar">{(user.farmName ?? user.displayName ?? user.phone)[0]}</span><span><b>{user.farmName ?? user.displayName ?? user.phone}</b><span>{(t.verification as any)[`level${user.verificationLevel}`]}</span></span></div>
       <div className="stat-row"><span><b>{user.dealsCount}</b> {t.admin.deals.toLowerCase()}</span><span><b>{user.rating || "—"}</b> {locale === "kk" ? "рейтинг" : "рейтинг"}</span><span><b>{user.trustScore}</b> {locale === "kk" ? "сенім" : "доверие"}</span><button onClick={async () => { await logout(); router.push(href("/")); }} className="muted-link">{t.auth.logout}</button></div>
       {user.verificationLevel < 2 && <div className="panel panel--surface small">{locale === "kk" ? "ЖСН/БСН растаңыз: сенім деңгейі мен лимиттер өседі." : "Подтвердите ИИН/БИН: вырастут уровень доверия и лимиты объявлений."}</div>}
-      <div className="chips chips--scroll">{tabs.map(([k, label]) => <Link key={k} href={href(`/profile?tab=${k}`)} className="chip" aria-pressed={tab === k}>{label}</Link>)}</div>
+      <div className="chips chips--scroll">{tabs.map(([k, label]) => <Link key={k} href={href(`/profile?tab=${k}`)} className="chip" aria-current={tab === k ? "page" : undefined}>{label}</Link>)}</div>
 
       {tab === "listings" && <div className="stack">
-        {drafts.filter((d) => d.status !== "sent").map((d) => <div key={d.clientDraftId} className="panel panel--surface row between"><span><b>{d.payload.titleRu ?? d.payload.titleKk}</b><br /><span className="small">{d.status === "error" ? d.error : (locale === "kk" ? "телефондағы жоба, желі пайда болғанда жіберіледі" : "черновик в телефоне, уйдёт при появлении сети")}</span></span><button onClick={() => syncDrafts(submitDraft).then(() => listDrafts().then(setDrafts))} className="chip">{locale === "kk" ? "Жіберу" : "Отправить"}</button></div>)}
+        {drafts.filter((d) => d.status !== "sent").map((d) => <div key={d.clientDraftId} className="panel panel--surface row between"><span><b>{d.payload.titleRu ?? d.payload.titleKk}</b><br /><span className="small">{d.status === "error" ? d.error : (locale === "kk" ? "телефондағы жоба, желі пайда болғанда жіберіледі" : "черновик в телефоне, уйдёт при появлении сети")}</span></span><button onClick={() => syncDrafts(submitDraft, user.id).then(() => listDrafts(user.id).then(setDrafts))} className="chip">{locale === "kk" ? "Жіберу" : "Отправить"}</button></div>)}
         {listings.map((l) => <div key={l.id} className="list">
           <ListingCard l={l} />
           <div className="stat-row" style={{ padding: "0.4rem 0.75rem" }}><span className="mark">{(t.listing.status as any)[l.status]}</span>{stats[l.id] && <><span><b>{stats[l.id].views}</b> {locale === "kk" ? "қаралды" : "просмотров"}</span><span><b>{stats[l.id].calls}</b> {locale === "kk" ? "қоңырау" : "звонков"}</span><span><b>{stats[l.id].messages}</b> {locale === "kk" ? "хабарлама" : "сообщений"}</span><span><b>{stats[l.id].offers}</b> {locale === "kk" ? "ұсыныс" : "офферов"}</span><span><b>{stats[l.id].conversion} %</b></span></>}{l.expires_at && <span>{t.listing.expires} {date(l.expires_at)}</span>}</div>
           <div className="chips" style={{ padding: "0 0.75rem 0.75rem" }}>
             {["draft", "rejected", "expired"].includes(l.status) && <button onClick={() => setStatus(l.id, "active")} className="chip chip--ink">{t.common.publish}</button>}
             {l.status === "active" && <button onClick={() => setStatus(l.id, "reserved")} className="chip">{t.listing.status.reserved}</button>}
-            {["active", "reserved"].includes(l.status) && <button onClick={() => setStatus(l.id, "sold")} className="chip">{t.listing.status.sold}</button>}
+            {["active", "reserved"].includes(l.status) && <button onClick={() => setSoldFor({ id: l.id, qty: "" })} className="chip">{t.listing.status.sold}</button>}
+            {soldFor?.id === l.id && <form className="row" onSubmit={(e) => { e.preventDefault(); setStatus(l.id, "sold", soldFor.qty ? Number(soldFor.qty) : undefined); }}><input className="field" style={{ width: "8rem", minHeight: 40 }} type="number" inputMode="numeric" min={1} max={l.quantity} placeholder={locale === "kk" ? "бас саны" : "голов"} value={soldFor.qty} onChange={(e) => setSoldFor({ id: l.id, qty: e.target.value })} aria-label={t.filters.quantity} /><button className="chip chip--ink">{t.common.save}</button><button type="button" className="chip" onClick={() => setSoldFor(null)}>{t.common.cancel}</button></form>}
             {["active", "expired"].includes(l.status) && <button onClick={() => api(`/listings/${l.id}/extend`, { method: "POST", body: {} }).then(() => api("/users/me/listings").then((r) => setListings(r.items)))} className="chip">{t.listing.extend}</button>}
             {l.status !== "archived" && <button onClick={() => setStatus(l.id, "archived")} className="chip">{t.listing.status.archived}</button>}
             {l.reject_comment && <span className="small text-red">{l.reject_reason_code}: {l.reject_comment}</span>}
@@ -72,7 +74,8 @@ function Settings({ onSaved }: { onSaved: () => Promise<void> }) {
   const [ns, setNs] = useState<any>({ quietFrom: "", quietTo: "" }); const [ok, setOk] = useState(false);
   useEffect(() => { api("/notifications/settings").then((r) => setNs({ quietFrom: r.settings?.quiet_from?.slice(0, 5) ?? "", quietTo: r.settings?.quiet_to?.slice(0, 5) ?? "" })); }, []);
   const save = async () => { await api("/users/me", { method: "PATCH", body: { displayName: p.displayName, farmName: p.farmName, accountType: p.accountType, about: p.about || undefined } }); await api("/notifications/settings", { method: "PUT", body: { quietFrom: ns.quietFrom || null, quietTo: ns.quietTo || null } }); await onSaved(); setOk(true); };
-  const del = async () => { if (confirm(locale === "kk" ? "Аккаунтты жою?" : "Удалить аккаунт?")) { await api("/users/me", { method: "DELETE" }); location.href = "/"; } };
+  const [confirmDel, setConfirmDel] = useState(false);
+  const del = async () => { if (!confirmDel) { setConfirmDel(true); return; } await api("/users/me", { method: "DELETE" }); location.href = "/"; };
   const exportData = async () => { const d = await api("/users/me/export"); const b = new Blob([JSON.stringify(d, null, 2)], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "malsatu-export.json"; a.click(); };
   return <form className="stack" onSubmit={(e) => { e.preventDefault(); save(); }}>
     <label><span className="label">{t.auth.name}</span><input className="field" value={p.displayName} onChange={(e) => setP({ ...p, displayName: e.target.value })} /></label>
@@ -82,7 +85,8 @@ function Settings({ onSaved }: { onSaved: () => Promise<void> }) {
     <span className="label">{locale === "kk" ? "Тыныш сағаттар" : "Тихие часы"}</span>
     <div className="actions"><input className="field" type="time" value={ns.quietFrom} onChange={(e) => setNs({ ...ns, quietFrom: e.target.value })} aria-label={t.common.from} /><input className="field" type="time" value={ns.quietTo} onChange={(e) => setNs({ ...ns, quietTo: e.target.value })} aria-label={t.common.to} /></div>
     <button className="btn btn--wide">{ok ? t.common.verified : t.common.save}</button>
-    <div className="actions"><button type="button" onClick={exportData} className="btn btn--white">{locale === "kk" ? "Деректерді жүктеу" : "Скачать данные"}</button><button type="button" onClick={del} className="btn btn--white text-red">{t.common.delete}</button></div>
+    <div className="actions"><button type="button" onClick={exportData} className="btn btn--white">{locale === "kk" ? "Деректерді жүктеу" : "Скачать данные"}</button><button type="button" onClick={del} className={`btn ${confirmDel ? "btn--ink" : "btn--white"} text-red`}>{confirmDel ? (locale === "kk" ? "Иә, жою" : "Да, удалить навсегда") : t.common.delete}</button></div>
+    {confirmDel && <p className="small text-red">{locale === "kk" ? "Хабарландырулар мұрағатталады, деректер анонимделеді. Қайтару мүмкін емес." : "Объявления уйдут в архив, данные будут анонимизированы. Отменить нельзя."}</p>}
   </form>;
 }
 export default function ProfilePage() { return <Suspense><ProfileInner /></Suspense>; }

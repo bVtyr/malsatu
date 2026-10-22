@@ -1,7 +1,7 @@
 /** Бизнес-логика объявлений: создание, публикация (премодерация/антифрод/карантин), статусы, перевод. */
 import { sql } from "kysely";
 import {
-  type ListingUpsert, checkListingText, accountLimits, listingExpiresAt, publishTarget, ownerCanSet, validateLivestockForPublish, normalizeToPerKg,
+  type ListingUpsert, checkListingText, accountLimits, listingExpiresAt, publishTarget, ownerCanSet, validateLivestockForPublish, normalizeToPerKg, sellPartial,
   isSuspiciouslyLow, evaluateListing, SPECIES_OF_CATEGORY, type QuarantineZone, type ListingStatus, type PriceUnit, type ListingKind,
 } from "@malsatu/shared";
 import { db } from "../../db/index.js";
@@ -29,9 +29,10 @@ async function topRegionOf(code: string): Promise<string> {
   return top;
 }
 
-async function mediaFlags(mediaIds: string[]) {
+async function mediaFlags(mediaIds: string[], ownerId?: string) {
   if (!mediaIds.length) return { photos: 0, hasVideo: false };
-  const rows = await db.selectFrom("media").select(["id", "kind"]).where("id", "in", mediaIds).execute();
+  const rows = await db.selectFrom("media").select(["id", "kind"]).where("id", "in", mediaIds).where("owner_user_id", "=", ownerId ?? "").execute();
+  if (rows.length !== mediaIds.length) throw new AppError(403, "media_not_owned");
   return { photos: rows.filter((m) => m.kind === "image").length, hasVideo: rows.some((m) => m.kind === "video") };
 }
 
@@ -66,7 +67,7 @@ export async function createListing(user: User, input: ListingUpsert): Promise<L
   if (!cat) throw new AppError(400, "category_not_found");
   if (input.kind !== "wanted" && cat.kind !== input.kind) throw new AppError(400, "category_kind_mismatch");
   const top = await topRegionOf(input.regionCode);
-  const { photos, hasVideo } = await mediaFlags(input.mediaIds);
+  const { photos, hasVideo } = await mediaFlags(input.mediaIds, user.id);
   const tr = await fillTranslations(input);
   const d = derived(input, photos, hasVideo);
 
@@ -86,7 +87,7 @@ export async function createListing(user: User, input: ListingUpsert): Promise<L
     }).returningAll().executeTakeFirstOrThrow();
     if (input.mediaIds.length) await trx.insertInto("listing_media").values(input.mediaIds.map((m, i) => ({ listing_id: l.id, media_id: m, sort: i, is_cover: i === 0 }))).execute();
     if (input.tagNumbers.length) await trx.insertInto("animal_tags").values(input.tagNumbers.map((t) => ({ listing_id: l.id, tag_number: t }))).execute();
-    if (input.documentIds.length) await trx.updateTable("listing_documents").set({ listing_id: l.id }).where("id", "in", input.documentIds).execute();
+    if (input.documentIds.length) await trx.updateTable("listing_documents").set({ listing_id: l.id }).where("id", "in", input.documentIds).where("listing_id", "in", (eb) => eb.selectFrom("listings").select("id").where("owner_user_id", "=", user.id)).execute(); // чужие документы перепривязать нельзя
     return l;
   });
   return listing;
@@ -97,20 +98,29 @@ export async function updateListing(user: User, id: string, input: ListingUpsert
   if (!cur) throw new AppError(404, "listing_not_found");
   if (cur.owner_user_id !== user.id) throw new AppError(403, "not_owner");
   const top = await topRegionOf(input.regionCode);
-  const { photos, hasVideo } = await mediaFlags(input.mediaIds);
+  const { photos, hasVideo } = await mediaFlags(input.mediaIds, user.id);
   const tr = await fillTranslations(input);
   const d = derived(input, photos, hasVideo);
-  // Существенные правки активного объявления возвращают его на модерацию (если продавец на премодерации)
+  // Количество, удержанное открытыми сделками, нельзя «переписать» редактированием
+  const heldRow = await db.selectFrom("deals").select((eb) => eb.fn.sum<number>("quantity").as("held")).where("listing_id", "=", id).where("mode", "!=", "direct").where("status", "not in", ["completed", "cancelled", "refunded", "partially_refunded", "released_to_seller"]).executeTakeFirst();
+  const held = Number(heldRow?.held ?? 0);
+  if (held > 0 && input.quantity < held) throw new AppError(409, "quantity_below_held", undefined, { held });
+  // Существенные правки активного объявления возвращают его на модерацию: новичкам всегда, остальным при смене цены/текста/точки с антифрод-сигналом
   const limits = accountLimits(user.trust_score, user.published_count);
-  const backToModeration = cur.status === "active" && limits.premoderate;
+  const material = cur.price_kzt !== (input.priceType === "negotiable" ? null : input.priceKzt ?? null) || cur.lat !== input.lat || cur.lng !== input.lng || cur.title_ru !== (input.titleRu ?? cur.title_ru) || cur.description_ru !== (input.descriptionRu ?? cur.description_ru);
+  const fraudNow = checkListingText(`${input.titleRu ?? ""} ${input.titleKk ?? ""} ${input.descriptionRu ?? ""} ${input.descriptionKk ?? ""}`);
+  const zonesNow = await loadActiveZones();
+  const qNow = evaluateListing({ lat: input.lat, lng: input.lng }, SPECIES_OF_CATEGORY(input.categoryCode), zonesNow);
+  const backToModeration = cur.status === "active" && (limits.premoderate || (material && (fraudNow.warn || user.trust_score < 60)));
   return db.transaction().execute(async (trx) => {
     const l = await trx.updateTable("listings").set({
       category_code: input.categoryCode, ...tr, source_locale: input.sourceLocale, price_type: input.priceType, price_kzt: input.priceType === "negotiable" ? null : input.priceKzt ?? null,
       price_per_kg_kzt: d.price_per_kg_kzt, bargain: input.bargain, quantity: input.quantity, is_lot: input.isLot || input.quantity > 1, avg_weight_kg: input.avgWeightKg ?? null,
       weight_min_kg: input.weightMinKg ?? null, weight_max_kg: input.weightMaxKg ?? null, attributes: JSON.stringify(input.attributes), region_code: input.regionCode, top_region_code: top,
       lat: input.lat, lng: input.lng, address_hidden: input.addressHidden, delivery_options: input.deliveryOptions, escrow_available: input.escrowAvailable,
-      has_video: d.has_video, has_docs: d.has_docs, has_tags: d.has_tags, halal: d.halal, needed_by: input.neededBy ?? null,
-      ...(backToModeration ? { status: "pending_moderation" } : {}),
+      has_video: d.has_video, has_docs: d.has_docs, has_tags: d.has_tags, halal: d.halal, needed_by: input.neededBy ?? null, quantity: held > 0 ? Math.max(input.quantity - held, 0) + 0 : input.quantity, initial_quantity: input.quantity,
+      quarantine_flagged: qNow.flagged, quarantine_zone_ids: qNow.zones.map((z) => z.id),
+      ...(backToModeration ? { status: "pending_moderation" } : qNow.hidden && cur.kind === "livestock" && cur.status === "active" ? { status: "hidden_quarantine", status_before_quarantine: "active" } : {}),
     }).where("id", "=", id).returningAll().executeTakeFirstOrThrow();
     await trx.deleteFrom("listing_media").where("listing_id", "=", id).execute();
     if (input.mediaIds.length) await trx.insertInto("listing_media").values(input.mediaIds.map((m, i) => ({ listing_id: id, media_id: m, sort: i, is_cover: i === 0 }))).execute();
@@ -151,8 +161,8 @@ export async function publishListing(user: User, id: string): Promise<PublishRes
   const text = `${l.title_ru ?? ""} ${l.title_kk ?? ""} ${l.description_ru ?? ""} ${l.description_kk ?? ""}`;
   const fraud = checkListingText(text);
   if (fraud.signals.length) signals.text = fraud.signals;
-  const stat = await db.selectFrom("price_index_daily").selectAll().where("category_code", "=", l.category_code).where("region_code", "in", [l.top_region_code, "kz"]).where("unit", "=", l.price_type)
-    .orderBy("day", "desc").orderBy(sql`region_code = ${l.top_region_code}`, "desc").executeTakeFirst();
+  const stat = l.price_type === "per_lot" ? undefined : await db.selectFrom("price_index_daily").selectAll().where("category_code", "=", l.category_code).where("region_code", "in", [l.top_region_code, "kz"]).where("unit", "=", l.price_type).where("day", ">=", new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10))
+    .orderBy(sql`region_code = ${l.top_region_code}`, "desc").orderBy("day", "desc").executeTakeFirst();
   if (l.price_kzt && stat && isSuspiciouslyLow(l.price_kzt, { ...stat, count: stat.count, median: stat.median_kzt } as any)) signals.price_low = { price: l.price_kzt, median: stat.median_kzt };
   const dupPhotos = await sql<{ n: number }>`
     SELECT count(*)::int AS n FROM listing_media lm JOIN media m ON m.id = lm.media_id
@@ -196,9 +206,9 @@ export async function setStatus(user: User, id: string, to: ListingStatus, soldQ
   if (l.owner_user_id !== user.id) throw new AppError(403, "not_owner");
   if (to === "active" && (l.status === "draft" || l.status === "rejected" || l.status === "expired")) { return (await publishListing(user, id)).listing; }
   if (!ownerCanSet(l.status as ListingStatus, to)) throw new AppError(409, "invalid_status_transition");
-  const patch: Record<string, unknown> = { status: to };
-  if (to === "sold" && soldQty && soldQty < l.quantity) { patch.status = "active"; patch.quantity = l.quantity - soldQty; } // частичная продажа
-  if (to === "sold" && !soldQty) patch.quantity = 0;
+  if (to === "active" && l.status === "sold" && l.quantity <= 0) throw new AppError(409, "nothing_left_to_sell");
+  const patch: Record<string, unknown> = { status: to, manual_reserved: to === "reserved" };
+  if (to === "sold") { const cur = { status: l.status as ListingStatus, quantity: l.quantity }; sellPartial(cur, soldQty ?? l.quantity); patch.status = cur.status; patch.quantity = cur.quantity; }
   return db.updateTable("listings").set(patch as any).where("id", "=", id).returningAll().executeTakeFirstOrThrow();
 }
 
@@ -211,9 +221,10 @@ export async function extendListing(user: User, id: string): Promise<Listing> {
 
 /** Подсказка рыночной цены для мастера создания. */
 export async function priceHintFor(categoryCode: string, topRegionCode: string, unit: string) {
-  const local = await db.selectFrom("price_index_daily").selectAll().where("category_code", "=", categoryCode).where("region_code", "=", topRegionCode).where("unit", "=", unit).orderBy("day", "desc").executeTakeFirst();
+  const fresh = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+  const local = await db.selectFrom("price_index_daily").selectAll().where("category_code", "=", categoryCode).where("region_code", "=", topRegionCode).where("unit", "=", unit).where("day", ">=", fresh).orderBy("day", "desc").executeTakeFirst();
   if (local && local.count >= 3) return { scope: "region", ...local };
-  const nat = await db.selectFrom("price_index_daily").selectAll().where("category_code", "=", categoryCode).where("region_code", "=", "kz").where("unit", "=", unit).orderBy("day", "desc").executeTakeFirst();
+  const nat = await db.selectFrom("price_index_daily").selectAll().where("category_code", "=", categoryCode).where("region_code", "=", "kz").where("unit", "=", unit).where("day", ">=", fresh).orderBy("day", "desc").executeTakeFirst();
   if (nat && nat.count >= 3) return { scope: "country", ...nat };
   // Fallback: прямой расчёт по активным объявлениям за 30 дней
   const live = await sql<{ count: number; avg: number; median: number }>`

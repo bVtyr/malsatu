@@ -48,10 +48,15 @@ export default async function dealsRoutes(app: FastifyInstance) {
 
   app.post<{ Params: { id: string } }>("/deals/:id/action", { preHandler: [app.authenticate] }, async (req) => {
     const a = DealActionSchema.parse(req.body);
-    const d = await db.selectFrom("deals").select(["buyer_id", "seller_id"]).where("id", "=", req.params.id).executeTakeFirst();
+    const d = await db.selectFrom("deals").select(["buyer_id", "seller_id", "transport_request_id"]).where("id", "=", req.params.id).executeTakeFirst();
     if (!d) throw new AppError(404, "deal_not_found");
     const uid = req.user!.id;
-    const actor = uid === d.buyer_id ? "buyer" : uid === d.seller_id ? "seller" : req.user!.roles.includes("carrier") ? "carrier" : req.user!.roles.includes("admin") ? "admin" : null;
+    let actor: "buyer" | "seller" | "carrier" | "admin" | null = uid === d.buyer_id ? "buyer" : uid === d.seller_id ? "seller" : req.user!.roles.includes("admin") ? "admin" : null;
+    if (!actor && d.transport_request_id && req.user!.roles.includes("carrier")) {
+      // перевозчик может менять статус только по своей (выбранной заказчиком) заявке
+      const tr = await db.selectFrom("transport_requests").innerJoin("transport_bids", "transport_bids.id", "transport_requests.chosen_bid_id").select("transport_bids.carrier_id").where("transport_requests.id", "=", d.transport_request_id).executeTakeFirst();
+      if (tr?.carrier_id === uid) actor = "carrier";
+    }
     if (!actor) throw new AppError(403, "not_participant");
     try { return { deal: await dealsService.act(req.params.id, a.action, actor, uid, { comment: a.comment, evidence: a.evidenceMediaIds }) }; }
     catch (e) { if (e instanceof DealError) throw new AppError(409, e.code); throw e; }
@@ -71,7 +76,7 @@ export default async function dealsRoutes(app: FastifyInstance) {
     return { message: m };
   });
   app.post<{ Params: { id: string } }>("/disputes/:id/resolve", { preHandler: [app.requirePermission("dispute:resolve")] }, async (req) => {
-    const { resolution, refundKzt, comment } = z.object({ resolution: z.enum(["refund", "partial_refund", "for_seller"]), refundKzt: z.number().int().positive().optional(), comment: z.string().optional() }).parse(req.body);
+    const { resolution, refundKzt, comment } = z.object({ resolution: z.enum(["refund", "partial_refund", "for_seller"]), refundKzt: z.number().int().positive().max(1e12).optional(), comment: z.string().max(2000).optional() }).superRefine((v, ctx) => { if (v.resolution === "partial_refund" && !v.refundKzt) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "refund_required", path: ["refundKzt"] }); }).parse(req.body);
     const disp = await db.selectFrom("disputes").select(["deal_id"]).where("id", "=", req.params.id).executeTakeFirst();
     if (!disp) throw new AppError(404, "dispute_not_found");
     const action = resolution === "refund" ? "resolve_refund" : resolution === "partial_refund" ? "resolve_partial_refund" : "resolve_for_seller";
@@ -88,6 +93,10 @@ export default async function dealsRoutes(app: FastifyInstance) {
     const d = await db.selectFrom("deals").selectAll().where("id", "=", req.params.id).executeTakeFirst();
     if (!d) throw new AppError(404, "deal_not_found");
     if (!["completed", "released_to_seller", "partially_refunded", "refunded"].includes(d.status)) throw new AppError(409, "deal_not_completed");
+    if (d.mode === "direct") throw new AppError(409, "review_requires_platform_deal"); // накрутка рейтинга бесплатными «прямыми» сделками
+    if (d.completed_at && Date.now() - new Date(d.completed_at).getTime() > 30 * 86_400_000) throw new AppError(409, "review_window_closed");
+    const dup = await db.selectFrom("reviews").select("id").where("deal_id", "=", d.id).where("author_id", "=", req.user!.id).executeTakeFirst();
+    if (dup) throw new AppError(409, "review_exists");
     const uid = req.user!.id;
     if (uid !== d.buyer_id && uid !== d.seller_id) throw new AppError(403, "not_participant");
     const target = uid === d.buyer_id ? d.seller_id : d.buyer_id;

@@ -6,7 +6,7 @@ const base = (over: Partial<DealLike> = {}): DealLike => ({ mode: "escrow", stat
 describe("deal state machine", () => {
   it("happy path escrow: created → paid → preparing → in_transit → inspection → confirmed → completed", () => {
     let d = base();
-    d = { ...d, ...applyDealAction(d, "pay", "buyer") };
+    d = { ...d, ...applyDealAction(d, "pay", "system") };
     expect(d.status).toBe("paid");
     d = { ...d, ...applyDealAction(d, "start_preparing", "seller") };
     expect(d.status).toBe("preparing");
@@ -30,8 +30,9 @@ describe("deal state machine", () => {
     expect(() => applyDealAction(i, "confirm", "seller")).toThrow(/недоступно/);
   });
 
-  it("direct deals cannot be paid via platform", () => {
-    expect(canTransition(base({ mode: "direct" }), "pay", "buyer")).toBe(false);
+  it("direct deals cannot be paid via platform; buyers never mark paid themselves", () => {
+    expect(canTransition(base({ mode: "direct" }), "pay", "system")).toBe(false);
+    expect(canTransition(base(), "pay", "buyer")).toBe(false);
   });
 
   it("auto-confirm only after inspection window expires (24h livestock)", () => {
@@ -59,6 +60,11 @@ describe("deal state machine", () => {
     expect(settlement(base({ status: "refunded" }), 25_000)).toEqual({ toSeller: 0, toBuyer: 1_000_000, platformFee: 0 });
     expect(settlement(base({ status: "partially_refunded" }), 25_000, 300_000)).toEqual({ toSeller: 675_000, toBuyer: 300_000, platformFee: 25_000 });
     expect(settlement(base({ status: "released_to_seller" }), 25_000).toSeller).toBe(975_000);
+  });
+
+  it("direct deal: seller confirms hand-over; escrow cannot be confirmed before payment", () => {
+    expect(applyDealAction(base({ mode: "direct" }), "confirm", "seller").status).toBe("confirmed");
+    expect(canTransition(base({ mode: "escrow" }), "confirm", "seller")).toBe(false);
   });
 
   it("terminal statuses have no transitions", () => {

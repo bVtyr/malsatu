@@ -31,7 +31,8 @@ export default async function adminRoutes(app: FastifyInstance) {
   app.get("/admin/users", { preHandler: [staff] }, async (req) => {
     const { q, page = 1 } = z.object({ q: z.string().optional(), page: z.coerce.number().default(1) }).parse(req.query);
     let qb = db.selectFrom("users").selectAll().where("deleted_at", "is", null).orderBy("created_at", "desc").limit(50).offset((page - 1) * 50);
-    if (q) qb = qb.where((eb) => eb.or([eb("phone", "ilike", `%${q}%`), eb("display_name", "ilike", `%${q}%`), eb("farm_name", "ilike", `%${q}%`)]));
+    const like = `%${q?.replace(/[\\%_]/g, (m) => "\\" + m).slice(0, 64) ?? ""}%`;
+    if (q) qb = qb.where((eb) => eb.or([eb("phone", "ilike", like), eb("display_name", "ilike", like), eb("farm_name", "ilike", like)]));
     return { items: await qb.execute() };
   });
   app.patch<{ Params: { id: string } }>("/admin/users/:id", { preHandler: [admin] }, async (req) => {
@@ -154,14 +155,15 @@ export default async function adminRoutes(app: FastifyInstance) {
 
   // ---- Рассылки и push-кампании с сегментацией
   app.post("/admin/broadcast", { preHandler: [admin] }, async (req) => {
-    const b = z.object({ titleRu: z.string(), titleKk: z.string(), bodyRu: z.string().optional(), bodyKk: z.string().optional(), regionCodes: z.array(z.string()).default([]), roles: z.array(z.string()).default([]), limit: z.number().int().max(100_000).default(10_000) }).parse(req.body);
+    const b = z.object({ titleRu: z.string(), titleKk: z.string(), bodyRu: z.string().optional(), bodyKk: z.string().optional(), regionCodes: z.array(z.string()).default([]), roles: z.array(z.string()).default([]), limit: z.number().int().max(5_000).default(2_000) }).parse(req.body);
     let q = db.selectFrom("users").select("id").where("deleted_at", "is", null).where("is_blocked", "=", false).limit(b.limit);
     if (b.regionCodes.length) q = q.where("region_code", "in", b.regionCodes);
     if (b.roles.length) q = q.where(sql<boolean>`roles && ${b.roles}::text[]`);
     const users = await q.execute();
-    for (const u of users) await notify({ userId: u.id, type: "system", titleRu: b.titleRu, titleKk: b.titleKk, bodyRu: b.bodyRu, bodyKk: b.bodyKk });
+    // доставка в фоне пачками, чтобы запрос не держал соединение минутами
+    setImmediate(async () => { for (const u of users) { try { await notify({ userId: u.id, type: "system", titleRu: b.titleRu, titleKk: b.titleKk, bodyRu: b.bodyRu, bodyKk: b.bodyKk }); } catch (e) { req.log.warn({ err: e }, "broadcast item failed"); } } });
     await audit(req.user!.id, "admin.broadcast", undefined, { count: users.length, segment: { regions: b.regionCodes, roles: b.roles } }, req.ip);
-    return { sent: users.length };
+    return { queued: users.length };
   });
 
   // ---- Журнал действий

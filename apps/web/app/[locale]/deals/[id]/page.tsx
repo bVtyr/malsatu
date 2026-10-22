@@ -1,5 +1,5 @@
 "use client";
-import { use, useEffect, useState } from "react";
+import { Fragment, use, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
@@ -8,12 +8,12 @@ const FLOW = ["created", "paid", "preparing", "in_transit", "inspection", "confi
 /** Сделка: статус полем, шаги квитанцией, суммы листом, действия по роли, спор, отзыв. */
 export default function DealPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params); const { t, money, date, locale } = useI18n(); const { user } = useAuth();
-  const [d, setD] = useState<any>(null); const [err, setErr] = useState<string | null>(null);
+  const [d, setD] = useState<any>(null); const [err, setErr] = useState<string | null>(null); const [dispute, setDispute] = useState<{ open: boolean; reason: string }>({ open: false, reason: "" });
   const load = () => api(`/deals/${id}`).then(setD).catch((e) => setErr(e.code));
   useEffect(() => { if (user) load(); }, [user, id]);
   if (!d) return <p>{err ?? t.common.loading}</p>;
   const deal = d.deal; const isBuyer = deal.buyer_id === user?.id; const isSeller = deal.seller_id === user?.id;
-  const act = async (action: string) => { try { if (action === "pay") await api(`/deals/${id}/pay`, { method: "POST", body: {} }); else { const comment = action === "open_dispute" ? prompt(locale === "kk" ? "Дау себебі" : "Причина спора") ?? "" : undefined; await api(`/deals/${id}/action`, { body: { action, comment } }); } await load(); } catch (e: any) { setErr(e.code); } };
+  const act = async (action: string, comment?: string) => { try { if (action === "pay") await api(`/deals/${id}/pay`, { method: "POST", body: {} }); else await api(`/deals/${id}/action`, { body: { action, comment } }); setDispute({ open: false, reason: "" }); await load(); } catch (e: any) { setErr(e.code); } };
   const idx = FLOW.indexOf(deal.status);
   const buttons: Array<[string, string, boolean, string]> = [
     ["pay", locale === "kk" ? "Төлеу" : "Оплатить", isBuyer && deal.status === "created" && deal.mode !== "direct", "btn"],
@@ -42,9 +42,14 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
         {isSeller && <><dt>{locale === "kk" ? "Платформа комиссиясы" : "Комиссия платформы"}</dt><dd>{money(deal.commission_kzt)}</dd></>}
         <dt>{locale === "kk" ? "Тексеру терезесі" : "Окно осмотра"}</dt><dd>{deal.inspection_window_hours} ч</dd>
         <dt>{t.listing.delivery}</dt><dd>{deal.delivery_option}</dd>
-        {d.vetReports?.map((v: any) => <><dt key={v.id + "t"}>{t.listing.actions.vet}</dt><dd key={v.id + "d"}>{v.conclusion ?? v.status}</dd></>)}
+        {d.vetReports?.map((v: any) => <Fragment key={v.id}><dt>{t.listing.actions.vet}</dt><dd>{v.conclusion ?? v.status}</dd></Fragment>)}
       </dl>
-      <div className="actions">{buttons.filter(([, , ok]) => ok).map(([a, label, , cls]) => <button key={a} onClick={() => act(a)} className={`${cls} span-2`}>{label}</button>)}</div>
+      <div className="actions">{buttons.filter(([, , ok]) => ok).map(([a, label, , cls]) => <button key={a} type="button" onClick={() => (a === "open_dispute" ? setDispute({ open: true, reason: "" }) : act(a))} className={`${cls} span-2`}>{label}</button>)}</div>
+      {dispute.open && <form className="panel panel--red inline-form" onSubmit={(e) => { e.preventDefault(); if (dispute.reason.trim().length >= 10) act("open_dispute", dispute.reason.trim()); }}>
+        <label className="label" htmlFor="dispute-reason">{locale === "kk" ? "Дау себебі (кемінде 10 таңба)" : "Причина спора (минимум 10 символов)"}</label>
+        <textarea id="dispute-reason" className="field" required minLength={10} value={dispute.reason} onChange={(e) => setDispute({ ...dispute, reason: e.target.value })} placeholder={locale === "kk" ? "Не сәйкес келмеді: салмағы, саны, күйі…" : "Что не так: вес, количество, состояние…"} />
+        <div className="actions"><button type="button" className="btn btn--white" onClick={() => setDispute({ open: false, reason: "" })}>{t.common.cancel}</button><button className="btn btn--ink" disabled={dispute.reason.trim().length < 10}>{t.deal.status.disputed}</button></div>
+      </form>}
       {err && <p className="text-red small">{err}</p>}
       {d.dispute && <div className="panel panel--surface"><b>{t.deal.status.disputed}: {d.dispute.status}</b><p className="small">{d.dispute.reason}{d.dispute.resolution ? `. ${d.dispute.resolution}${d.dispute.refund_kzt ? `, ${money(d.dispute.refund_kzt)}` : ""}` : ""}</p></div>}
       {deal.status === "completed" && <ReviewForm dealId={id} />}

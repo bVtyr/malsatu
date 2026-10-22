@@ -21,15 +21,15 @@ export function Shell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setOnline(navigator.onLine);
-    const on = () => { setOnline(true); syncDrafts(submitDraft).catch(() => undefined); };
+    const on = () => { setOnline(true); syncDrafts(submitDraft, user?.id).catch(() => undefined); };
     const off = () => setOnline(false);
     window.addEventListener("online", on); window.addEventListener("offline", off);
-    if ("serviceWorker" in navigator) { navigator.serviceWorker.register("/sw.js").catch(() => undefined); navigator.serviceWorker.addEventListener("message", (e) => { if (e.data?.type === "SYNC_DRAFTS") syncDrafts(submitDraft).catch(() => undefined); }); }
+    if ("serviceWorker" in navigator) { navigator.serviceWorker.register("/sw.js").catch(() => undefined); navigator.serviceWorker.addEventListener("message", (e) => { if (e.data?.type === "SYNC_DRAFTS") syncDrafts(submitDraft, user?.id).catch(() => undefined); }); }
     return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
-  }, []);
-  useEffect(() => { if (user) api("/notifications").then((r) => setUnread(r.unread)).catch(() => undefined); }, [user, path]);
+  }, [user?.id]);
+  useEffect(() => { if (!user) return; const tick = () => api("/notifications").then((r) => setUnread(r.unread)).catch(() => undefined); tick(); const i = setInterval(tick, 60_000); return () => clearInterval(i); }, [user?.id]);
 
-  const switchLocale = () => { const other = locale === "kk" ? "ru" : "kk"; document.cookie = `locale=${other};path=/;max-age=31536000`; router.push(path.replace(/^\/(kk|ru)/, `/${other}`)); };
+  const switchLocale = () => { const other = locale === "kk" ? "ru" : "kk"; document.cookie = `locale=${other};path=/;max-age=31536000;SameSite=Lax${location.protocol === "https:" ? ";Secure" : ""}`; router.push(path.replace(/^\/(kk|ru)/, `/${other}`)); };
   const is = (p: string) => path === href(p) || (p !== "/" && path.startsWith(href(p)));
   return (
     <>

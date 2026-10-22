@@ -12,6 +12,7 @@ export function Motion() {
     document.querySelectorAll("[data-reveal]").forEach((el) => io.observe(el));
     const co = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) { const el = e.target as HTMLElement; const end = Number(el.dataset.count); const suf = el.dataset.suffix ?? ""; co.unobserve(el); if (reduce) { el.textContent = end + suf; continue; } const t0 = performance.now(); const step = (t: number) => { const p = Math.min(1, (t - t0) / 900); el.textContent = Math.round(end * (1 - Math.pow(1 - p, 3))) + suf; if (p < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); } }, { threshold: 0.5 });
     document.querySelectorAll("[data-count]").forEach((el) => co.observe(el));
+    const main = document.querySelector(".page"); if (main && !reduce) { main.classList.remove("page-enter"); void (main as HTMLElement).offsetWidth; main.classList.add("page-enter"); }
     const top = document.querySelector(".app-top");
     const onScroll = () => top?.classList.toggle("is-scrolled", scrollY > 24);
     onScroll(); addEventListener("scroll", onScroll, { passive: true });

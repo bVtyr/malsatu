@@ -16,7 +16,7 @@ import { slaughterYield, SPECIES_OF_CATEGORY } from "@malsatu/shared";
 
 /** Мастер в семь шагов: тип → ряд (категория) → фото → основное → атрибуты → место и доставка → проверка. Черновик живёт в телефоне. */
 export default function NewListingPage() {
-  const { t, name, locale, money, href } = useI18n(); const { user, loading } = useAuth(); const { pos } = useGeo(); const router = useRouter();
+  const { t, name, locale, money, href } = useI18n(); const { user, loading } = useAuth(); const { pos, request: requestGeo } = useGeo(); const router = useRouter();
   const [step, setStep] = useState(0);
   const [cats, setCats] = useState<any[]>([]); const [breeds, setBreeds] = useState<any[]>([]);
   const [f, setF] = useState<any>({ kind: "livestock", categoryCode: "", title: "", description: "", priceType: "per_head", priceKzt: "", bargain: false, quantity: 1, avgWeightKg: "", weightMinKg: "", weightMaxKg: "", attributes: {}, tagNumbers: "", regionCode: "", point: null as null | { lat: number; lng: number }, deliveryOptions: ["pickup"], escrowAvailable: true, neededBy: "" });
@@ -49,8 +49,8 @@ export default function NewListingPage() {
   });
   const submit = async () => {
     setBusy(true); setErr(null);
-    const draft = { clientDraftId: crypto.randomUUID(), payload: payload(), photos: photos.map((p) => ({ name: p.name, blob: p.blob })), createdAt: Date.now(), status: "pending" as const };
-    try { await saveDraft(draft); if (navigator.onLine) await syncDrafts(submitDraft); router.push(href("/profile?tab=listings")); } catch (e: any) { setErr(e?.code ?? e?.message ?? "error"); } finally { setBusy(false); }
+    const draft = { clientDraftId: crypto.randomUUID(), ownerId: user!.id, payload: payload(), photos: photos.map((p) => ({ name: p.name, blob: p.blob })), createdAt: Date.now(), status: "pending" as const };
+    try { await saveDraft(draft); if (navigator.onLine) await syncDrafts(submitDraft, user!.id); router.push(href("/profile?tab=listings")); } catch (e: any) { setErr(e?.code ?? e?.message ?? "error"); } finally { setBusy(false); }
   };
 
   return (
@@ -99,9 +99,13 @@ export default function NewListingPage() {
       )}
       {step === 5 && (
         <div className="stack">
-          <RegionPicker value={f.regionCode} onChange={(code, r) => { set("regionCode", code); if (r?.lat && !f.point) set("point", { lat: r.lat, lng: r.lng }); }} geo={pos} />
+          <RegionPicker value={f.regionCode} onChange={(code, r) => { set("regionCode", code); if (r?.lat && !f.point) set("point", { lat: r.lat, lng: r.lng }); }} geo={pos} onRequestGeo={requestGeo} />
           <p className="sub">{locale === "kk" ? "Картада нүктені белгілеңіз. Сатып алушыға ол 1–2 км дәлдікпен көрсетіледі, нақты мекенжай жасырын." : "Отметьте точку на карте. Покупателю она показывается с точностью 1–2 км, точный адрес скрыт."}</p>
           <PointPicker value={f.point} onChange={(p) => set("point", p)} />
+          <div className="actions">
+            <label><span className="label">{locale === "kk" ? "Ендік" : "Широта"}</span><input className="field" type="number" step="0.0001" min={40} max={56} value={f.point?.lat ?? ""} onChange={(e) => set("point", { lat: Number(e.target.value), lng: f.point?.lng ?? 68 })} /></label>
+            <label><span className="label">{locale === "kk" ? "Бойлық" : "Долгота"}</span><input className="field" type="number" step="0.0001" min={46} max={88} value={f.point?.lng ?? ""} onChange={(e) => set("point", { lat: f.point?.lat ?? 48, lng: Number(e.target.value) })} /></label>
+          </div>
           <span className="label">{t.listing.delivery}</span>
           <div className="chips">{[["pickup", t.listing.pickup], ["seller_delivery", t.listing.sellerDelivery], ["platform_carrier", t.listing.platformCarrier]].map(([k, label]) => { const on = f.deliveryOptions.includes(k); return <button key={k} type="button" onClick={() => set("deliveryOptions", on ? f.deliveryOptions.filter((x: string) => x !== k) : [...f.deliveryOptions, k])} className="chip" aria-pressed={on}>{label}</button>; })}</div>
           <label className="check"><input type="checkbox" checked={f.escrowAvailable} onChange={(e) => set("escrowAvailable", e.target.checked)} />{t.listing.actions.escrow}</label>

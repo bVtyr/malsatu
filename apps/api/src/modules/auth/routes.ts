@@ -4,7 +4,7 @@ import { db } from "../../db/index.js";
 import { config, isDev } from "../../config.js";
 import { sms } from "../../services/sms.js";
 import { generateOtp, hashOtp, checkOtp, canResend } from "./otp.js";
-import { createSession, sha256 } from "../../plugins/auth.js";
+import { createSession, sha256, SESSION_COOKIE, sessionCookieOptions } from "../../plugins/auth.js";
 import { AppError } from "../../plugins/errors.js";
 import { audit } from "../../plugins/audit.js";
 
@@ -16,6 +16,8 @@ export default async function authRoutes(app: FastifyInstance) {
     if (black) throw new AppError(403, "phone_blacklisted");
     const last = await db.selectFrom("otp_codes").select("created_at").where("phone", "=", phone).orderBy("created_at", "desc").executeTakeFirst();
     if (!canResend(last?.created_at, config.OTP_RESEND_COOLDOWN_SECONDS)) throw new AppError(429, "otp_cooldown");
+    const recent = await db.selectFrom("otp_codes").select((eb) => eb.fn.countAll<number>().as("n")).where("phone", "=", phone).where("created_at", ">", new Date(Date.now() - 3600_000)).executeTakeFirstOrThrow();
+    if (Number(recent.n) >= 5) throw new AppError(429, "otp_hourly_limit"); // SMS-pumping и перебор по номеру
     const code = isDev && config.OTP_DEV_STATIC_CODE ? config.OTP_DEV_STATIC_CODE.padStart(config.OTP_LENGTH, "0").slice(-config.OTP_LENGTH) : generateOtp(config.OTP_LENGTH);
     await db.insertInto("otp_codes").values({ phone, code_hash: hashOtp(phone, code, config.JWT_SECRET), channel, expires_at: new Date(Date.now() + config.OTP_TTL_SECONDS * 1000), ip: req.ip }).execute();
     await sms.send(phone, `MalSatu: код ${code}. Никому не сообщайте. / MalSatu: код ${code}. Ешкімге айтпаңыз.`, channel);
@@ -23,15 +25,17 @@ export default async function authRoutes(app: FastifyInstance) {
   });
 
   // Проверка кода → создание пользователя при первом входе → сессия.
-  app.post("/auth/otp/verify", { config: { rateLimit: { max: 10, timeWindow: "10 minutes" } } }, async (req) => {
+  app.post("/auth/otp/verify", { config: { rateLimit: { max: 10, timeWindow: "10 minutes" } } }, async (req, reply) => {
     const { phone, code } = OtpVerifySchema.parse(req.body);
-    const rec = await db.selectFrom("otp_codes").selectAll().where("phone", "=", phone).where("consumed_at", "is", null).orderBy("created_at", "desc").executeTakeFirst();
-    const res = checkOtp(rec, phone, code, config.JWT_SECRET, config.OTP_MAX_ATTEMPTS);
-    if (res !== "ok") {
-      if (rec && res === "invalid") await db.updateTable("otp_codes").set((eb) => ({ attempts: eb("attempts", "+", 1) })).where("id", "=", rec.id).execute();
-      throw new AppError(400, `otp_${res}`);
-    }
+    if (await db.selectFrom("blacklist").select("id").where("kind", "=", "phone").where("value_hash", "=", sha256(phone)).executeTakeFirst()) throw new AppError(403, "phone_blacklisted");
+    const found = await db.selectFrom("otp_codes").select("id").where("phone", "=", phone).where("consumed_at", "is", null).orderBy("created_at", "desc").executeTakeFirst();
+    // атомарный инкремент попыток ДО сравнения: параллельные запросы не обходят лимит
+    const rec = found ? await db.updateTable("otp_codes").set((eb) => ({ attempts: eb("attempts", "+", 1) })).where("id", "=", found.id).where("attempts", "<", config.OTP_MAX_ATTEMPTS).returningAll().executeTakeFirst() : undefined;
+    if (found && !rec) throw new AppError(400, "otp_too_many_attempts");
+    const res = checkOtp(rec ? { ...rec, attempts: rec.attempts - 1 } : undefined, phone, code, config.JWT_SECRET, config.OTP_MAX_ATTEMPTS);
+    if (res !== "ok") throw new AppError(400, `otp_${res}`);
     await db.updateTable("otp_codes").set({ consumed_at: new Date() }).where("id", "=", rec!.id).execute();
+    await db.updateTable("otp_codes").set({ consumed_at: new Date() }).where("phone", "=", phone).where("consumed_at", "is", null).execute(); // старые коды гасим
     let user = await db.selectFrom("users").selectAll().where("phone", "=", phone).executeTakeFirst();
     let isNew = false;
     if (!user) {
@@ -43,11 +47,13 @@ export default async function authRoutes(app: FastifyInstance) {
     const session = await createSession(user.id, { ua: req.headers["user-agent"], ip: req.ip });
     await db.updateTable("users").set({ last_seen_at: new Date() }).where("id", "=", user.id).execute();
     await audit(user.id, "auth.login", { type: "user", id: user.id }, { isNew }, req.ip);
+    reply.setCookie(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
     return { token: session.token, expiresAt: session.expiresAt, user: publicSelf(user), isNew };
   });
 
-  app.post("/auth/logout", { preHandler: [app.authenticate] }, async (req) => {
+  app.post("/auth/logout", { preHandler: [app.authenticate] }, async (req, reply) => {
     await db.updateTable("sessions").set({ revoked_at: new Date() }).where("id", "=", req.sessionId!).execute();
+    reply.clearCookie(SESSION_COOKIE, { path: "/" });
     return { ok: true };
   });
 

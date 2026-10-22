@@ -41,6 +41,15 @@ describe("sogym pool (складчина)", () => {
     expect(p.status).toBe("expired");
     expect(p.shares.find((s) => s.id === "s2")?.status).toBe("cancelled");
   });
+  it("cannot pay into a cancelled pool or after the deadline", () => {
+    const p = mk();
+    const s = reserveShare(p, "u1", "1/8", "s1", t("2026-11-10T10:00:00Z"));
+    p.status = "cancelled";
+    expect(() => payShare(p, s.id, t("2026-11-10T10:01:00Z"))).toThrow(/pool_not_open|закрыт/);
+    const q = mk(); const s2 = reserveShare(q, "u1", "1/8", "s2", t("2026-11-30T23:59:00Z"));
+    expect(() => payShare(q, s2.id, t("2026-12-01T00:00:01Z"))).toThrow(/deadline/);
+  });
+
   it("cannot reserve after deadline", () => {
     const p = mk();
     expect(() => reserveShare(p, "u1", "1/8", "s1", t("2026-12-02T00:00:00Z"))).toThrow(/deadline/);

@@ -87,3 +87,13 @@
 .link { text-decoration: underline; text-underline-offset: 0.18em; text-decoration-thickness: 2px; }
 .label-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
 .bleed { margin-inline: calc(var(--gutter) * -1); border-radius: 0; }
+
+@media (prefers-reduced-motion: no-preference) { .page-enter { animation: page-in 280ms var(--ease-out) both; } }
+@keyframes page-in { from { opacity: 0; transform: translateY(10px); } }
+
+/* ссылка-оверлей карточки: вся карточка кликабельна, кнопка избранного поверх неё */
+.card .card-link { text-decoration: none; color: inherit; }
+.card .card-link::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius); }
+.card .card-link:focus-visible::after { outline: 3px solid var(--focus); outline-offset: 2px; }
+.card .fav { z-index: 1; }
+.inline-form { display: grid; gap: var(--s-2); }

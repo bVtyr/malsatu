@@ -19,7 +19,7 @@ export function pushToUser(userId: string, payload: unknown) {
 
 async function getOrCreateConversation(listingId: string, buyerId: string) {
   const listing = await db.selectFrom("listings").select(["id", "owner_user_id", "status"]).where("id", "=", listingId).executeTakeFirst();
-  if (!listing) throw new AppError(404, "listing_not_found");
+  if (!listing || !["active", "reserved", "sold"].includes(listing.status)) throw new AppError(404, "listing_not_found");
   if (listing.owner_user_id === buyerId) throw new AppError(400, "cannot_chat_self");
   const blocked = await db.selectFrom("user_blocks").select("blocker_id").where((eb) => eb.or([
     eb.and([eb("blocker_id", "=", listing.owner_user_id), eb("blocked_id", "=", buyerId)]), eb.and([eb("blocker_id", "=", buyerId), eb("blocked_id", "=", listing.owner_user_id)])])).executeTakeFirst();
@@ -35,6 +35,7 @@ export async function sendMessage(conversationId: string, senderId: string, inpu
   if (c.buyer_id !== senderId && c.seller_id !== senderId && !systemKind) throw new AppError(403, "not_participant");
   if (c.blocked_by) throw new AppError(403, "conversation_blocked");
   const recipientId = senderId === c.buyer_id ? c.seller_id : c.buyer_id;
+  if (input.mediaId) { const own = await db.selectFrom("media").select("id").where("id", "=", input.mediaId).where("owner_user_id", "=", senderId).executeTakeFirst(); if (!own) throw new AppError(403, "media_not_owned"); }
   const fraud = input.text ? checkMessage(input.text) : { signals: [], score: 0, warn: false };
   const [sender, recipient] = await Promise.all([
     db.selectFrom("users").select(["locale", "display_name"]).where("id", "=", senderId).executeTakeFirstOrThrow(),
@@ -116,22 +117,23 @@ export default async function chatRoutes(app: FastifyInstance) {
 
   // WebSocket: realtime доставка сообщений/офферов/статусов сделок
   app.get("/ws", { websocket: true }, async (socket, req) => {
-    const token = (req.query as any).token as string | undefined;
-    const s = token ? await resolveSession(token) : null;
-    if (!s) { socket.close(4001, "unauthorized"); return; }
-    const uid = s.user.id;
-    if (!sockets.has(uid)) sockets.set(uid, new Set());
-    sockets.get(uid)!.add(socket);
+    let uid: string | null = req.user?.id ?? null; // cookie-сессия уже разобрана onRequest-хуком
+    const attach = () => { if (!uid) return; if (!sockets.has(uid)) sockets.set(uid, new Set()); sockets.get(uid)!.add(socket); };
+    attach();
+    const guard = setTimeout(() => { if (!uid) socket.close(4001, "unauthorized"); }, 5000);
     socket.on("message", async (raw: Buffer) => {
       try {
+        if (raw.length > 4096) return;
         const m = JSON.parse(raw.toString());
+        if (m.type === "auth" && !uid && typeof m.token === "string") { const s = await resolveSession(m.token); if (s) { uid = s.user.id; attach(); clearTimeout(guard); } else socket.close(4001, "unauthorized"); return; }
+        if (!uid) return;
         if (m.type === "ping") socket.send(JSON.stringify({ type: "pong" }));
-        if (m.type === "typing" && m.conversationId) {
+        if (m.type === "typing" && typeof m.conversationId === "string") {
           const c = await db.selectFrom("conversations").select(["buyer_id", "seller_id"]).where("id", "=", m.conversationId).executeTakeFirst();
-          if (c) pushToUser(c.buyer_id === uid ? c.seller_id : c.buyer_id, { type: "typing", conversationId: m.conversationId, userId: uid });
+          if (c && (c.buyer_id === uid || c.seller_id === uid)) pushToUser(c.buyer_id === uid ? c.seller_id : c.buyer_id, { type: "typing", conversationId: m.conversationId, userId: uid });
         }
       } catch { /* ignore */ }
     });
-    socket.on("close", () => { sockets.get(uid)?.delete(socket); });
+    socket.on("close", () => { clearTimeout(guard); if (uid) sockets.get(uid)?.delete(socket); });
   });
 }

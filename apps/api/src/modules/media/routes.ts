@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { db } from "../../db/index.js";
 import { config } from "../../config.js";
 import { s3, objectKey, presignUpload, publicUrl } from "../../services/storage.js";
@@ -28,8 +28,13 @@ export default async function mediaRoutes(app: FastifyInstance) {
     return { mediaId: media.id, uploadUrl: url, key };
   });
   app.post<{ Params: { id: string } }>("/media/:id/complete", { preHandler: [app.authenticate] }, async (req) => {
-    const m = await db.updateTable("media").set({ status: "ready" }).where("id", "=", req.params.id).where("owner_user_id", "=", req.user!.id).returningAll().executeTakeFirst();
-    if (!m) throw new AppError(404, "media_not_found");
+    const pending = await db.selectFrom("media").selectAll().where("id", "=", req.params.id).where("owner_user_id", "=", req.user!.id).where("status", "=", "pending").executeTakeFirst();
+    if (!pending) throw new AppError(404, "media_not_found");
+    // подтверждаем по факту: объект существует, тип и размер совпадают с заявленными
+    const head = await s3.send(new HeadObjectCommand({ Bucket: config.S3_BUCKET, Key: pending.storage_key })).catch(() => null);
+    if (!head) throw new AppError(409, "upload_missing");
+    if ((head.ContentLength ?? 0) > 200 * 1024 * 1024 || (head.ContentType && !ALLOWED.has(head.ContentType))) throw new AppError(400, "upload_rejected");
+    const m = await db.updateTable("media").set({ status: "ready", size_bytes: head.ContentLength ?? pending.size_bytes, mime: head.ContentType ?? pending.mime }).where("id", "=", pending.id).returningAll().executeTakeFirstOrThrow();
     return { media: m };
   });
 
