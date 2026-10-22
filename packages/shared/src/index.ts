@@ -11,6 +11,7 @@ export * from "./domain/search.js";
 export * from "./domain/offer.js";
 export * from "./domain/listing.js";
 export * from "./domain/auction.js";
+export * from "./domain/iin.js";
 export * from "./domain/rbac.js";
 export * from "./domain/delivery.js";
 export * from "./domain/format.js";

@@ -22,6 +22,9 @@ const Env = z.object({
   CALL_MASKING_API_KEY: z.string().optional(),
   CALL_WEBHOOK_SECRET: z.string().min(16).optional(),
   PAYMENT_PROVIDER: z.enum(["mock", "kaspi", "paybox", "cloudpayments"]).default("mock"),
+  PAYMENT_API_URL: z.string().url().optional(),
+  PAYMENT_MERCHANT_ID: z.string().optional(),
+  PAYMENT_SECRET: z.string().min(32).optional(),
   S3_ENDPOINT: z.string().default("http://localhost:9000"),
   S3_REGION: z.string().default("kz-1"),
   S3_BUCKET: z.string().default("malsatu-media"),
@@ -51,5 +54,6 @@ if (!isDev) {
   if (config.S3_SECRET_KEY === "malsatu123" || config.S3_ACCESS_KEY === "malsatu") problems.push("S3_ACCESS_KEY/S3_SECRET_KEY остались значениями по умолчанию");
   if (/malsatu:malsatu@/.test(config.DATABASE_URL)) problems.push("DATABASE_URL использует пароль по умолчанию");
   if (config.PAYMENT_PROVIDER === "mock") problems.push("PAYMENT_PROVIDER=mock недопустим в production");
+  if (config.PAYMENT_PROVIDER !== "mock" && !(config.PAYMENT_API_URL && config.PAYMENT_MERCHANT_ID && config.PAYMENT_SECRET)) problems.push("PAYMENT_API_URL / PAYMENT_MERCHANT_ID / PAYMENT_SECRET обязательны для реального провайдера");
   if (problems.length) throw new Error("Небезопасная конфигурация:\n - " + problems.join("\n - "));
 }

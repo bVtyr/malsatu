@@ -11,6 +11,8 @@ import { applyQuarantineZones } from "../modules/admin/quarantine.js";
 import { autoConfirmDeals } from "./deals.js";
 import { settlePoolDeadlines } from "../modules/pools/routes.js";
 import { deliver } from "../services/notifications.js";
+import { settleAuctions } from "../modules/auctions/routes.js";
+import { closeTenders } from "../modules/tenders/routes.js";
 
 type Logger = { info: (o: any, m?: string) => void; error: (o: any, m?: string) => void };
 
@@ -21,6 +23,8 @@ const JOBS: Array<{ name: string; everyMs: number; run: () => Promise<unknown> }
   { name: "quarantine-apply", everyMs: 30 * 60_000, run: applyQuarantineZones },
   { name: "deals-auto-confirm", everyMs: 5 * 60_000, run: autoConfirmDeals },
   { name: "pool-deadlines", everyMs: 10 * 60_000, run: () => settlePoolDeadlines() },
+  { name: "auctions-settle", everyMs: 60_000, run: () => settleAuctions() },
+  { name: "tenders-close", everyMs: 5 * 60_000, run: () => closeTenders() },
   { name: "offers-expire", everyMs: 10 * 60_000, run: () => db.updateTable("offers").set({ status: "expired" }).where("status", "=", "pending").where("expires_at", "<", new Date()).execute() },
   { name: "otp-cleanup", everyMs: 60 * 60_000, run: () => sql`DELETE FROM otp_codes WHERE created_at < now() - interval '1 day'`.execute(db) },
   { name: "notifications-quiet-hours", everyMs: 5 * 60_000, run: async () => { const rows = await db.selectFrom("notifications").select("id").where("sent_at", "is", null).where("created_at", "<", new Date(Date.now() - 60_000)).limit(500).execute(); let sent = 0; for (const r of rows) if (await deliver(r.id)) sent++; return { sent, pending: rows.length - sent }; } },

@@ -13,7 +13,7 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
   useEffect(() => { if (user) load(); }, [user, id]);
   if (!d) return <p>{err ?? t.common.loading}</p>;
   const deal = d.deal; const isBuyer = deal.buyer_id === user?.id; const isSeller = deal.seller_id === user?.id;
-  const act = async (action: string, comment?: string) => { try { if (action === "pay") await api(`/deals/${id}/pay`, { method: "POST", body: {} }); else await api(`/deals/${id}/action`, { body: { action, comment } }); setDispute({ open: false, reason: "" }); await load(); } catch (e: any) { setErr(e.code); } };
+  const act = async (action: string, comment?: string) => { try { if (action === "pay") { const r = await api(`/deals/${id}/pay`, { method: "POST", body: {} }); if (r.payUrl) { window.location.href = r.payUrl; return; } } else await api(`/deals/${id}/action`, { body: { action, comment } }); setDispute({ open: false, reason: "" }); await load(); } catch (e: any) { setErr(e.code); } };
   const idx = FLOW.indexOf(deal.status);
   const buttons: Array<[string, string, boolean, string]> = [
     ["pay", locale === "kk" ? "Төлеу" : "Оплатить", isBuyer && deal.status === "created" && deal.mode !== "direct", "btn"],

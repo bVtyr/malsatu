@@ -1,6 +1,7 @@
 /** PostgreSQL-реализация DealRepo. */
 import { DEFAULT_COMMISSION_RULES, type AccountType, type CommissionRule, type FeeCategory } from "@malsatu/shared";
 import { db } from "../../db/index.js";
+import { config } from "../../config.js";
 import { payments } from "../../services/payments.js";
 import { DealError, type DealRepo, type DealRecord } from "./service.js";
 import { notify } from "../../services/notifications.js";
@@ -50,9 +51,9 @@ export const pgDealRepo: DealRepo = {
   async createPayment(p) {
     const dup = await db.selectFrom("payments").select("id").where("deal_id", "=", p.dealId).where("status", "in", ["pending", "succeeded"]).executeTakeFirst();
     if (dup) throw new Error("payment_exists");
-    const res = await payments.createPayment({ amountKzt: p.amountKzt, orderId: p.dealId, description: `MalSatu deal ${p.dealId}`, returnUrl: "" });
-    const row = await db.insertInto("payments").values({ deal_id: p.dealId, user_id: p.userId, provider: "mock", provider_ref: res.providerRef, amount_kzt: p.amountKzt, status: res.status }).returningAll().executeTakeFirstOrThrow();
-    return { id: row.id, status: res.status };
+    const res = await payments.createPayment({ amountKzt: p.amountKzt, orderId: p.dealId, description: `MalSatu deal ${p.dealId}`, returnUrl: `${config.PUBLIC_WEB_URL}/ru/deals/${p.dealId}` });
+    const row = await db.insertInto("payments").values({ deal_id: p.dealId, user_id: p.userId, provider: payments.name, provider_ref: res.providerRef, amount_kzt: p.amountKzt, status: res.status }).returningAll().executeTakeFirstOrThrow();
+    return { id: row.id, status: res.status, payUrl: res.payUrl };
   },
   async refundPayment(dealId, amountKzt) {
     // возвращаем по всем успешным платежам сделки, пока не наберём сумму; статус меняем условно (повторный вызов не вернёт дважды)

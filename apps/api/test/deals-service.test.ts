@@ -59,7 +59,7 @@ describe("DealsService", () => {
 
   it("full escrow flow: pay → preparing → ship → arrive → confirm ⇒ completed, payout = amount − commission", async () => {
     const d = await svc.create("buyer", { listingId: "l1", mode: "escrow", quantity: 50, offerId: "offer-ok" });
-    let cur = await svc.pay(d.id, "buyer");
+    let { deal: cur } = await svc.pay(d.id, "buyer");
     expect(cur.status).toBe("paid"); expect(cur.paidAt).toBeInstanceOf(Date);
     cur = await svc.act(d.id, "start_preparing", "seller", "seller");
     cur = await svc.act(d.id, "ship", "carrier", "carrier");

@@ -43,7 +43,7 @@ export default async function dealsRoutes(app: FastifyInstance) {
   });
 
   app.post<{ Params: { id: string } }>("/deals/:id/pay", { preHandler: [app.authenticate] }, async (req) => {
-    try { return { deal: await dealsService.pay(req.params.id, req.user!.id) }; } catch (e) { if (e instanceof DealError) throw new AppError(409, e.code); throw e; }
+    try { return await dealsService.pay(req.params.id, req.user!.id); } catch (e) { if (e instanceof DealError) throw new AppError(409, e.code); throw e; }
   });
 
   app.post<{ Params: { id: string } }>("/deals/:id/action", { preHandler: [app.authenticate] }, async (req) => {

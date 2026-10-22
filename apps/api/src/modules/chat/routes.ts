@@ -17,7 +17,7 @@ export function pushToUser(userId: string, payload: unknown) {
   for (const ws of set) { try { ws.send(data); } catch { /* ignore */ } }
 }
 
-async function getOrCreateConversation(listingId: string, buyerId: string) {
+export async function getOrCreateConversation(listingId: string, buyerId: string) {
   const listing = await db.selectFrom("listings").select(["id", "owner_user_id", "status"]).where("id", "=", listingId).executeTakeFirst();
   if (!listing || !["active", "reserved", "sold"].includes(listing.status)) throw new AppError(404, "listing_not_found");
   if (listing.owner_user_id === buyerId) throw new AppError(400, "cannot_chat_self");

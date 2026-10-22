@@ -1,4 +1,6 @@
 import Fastify from "fastify";
+import { sql } from "kysely";
+import { db } from "./db/index.js";
 import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
 import helmet from "@fastify/helmet";
@@ -29,6 +31,10 @@ import cmsRoutes from "./modules/cms/routes.js";
 import poolsRoutes from "./modules/pools/routes.js";
 import transportRoutes from "./modules/transport/routes.js";
 import vetRoutes from "./modules/vet/routes.js";
+import paymentsRoutes from "./modules/payments/routes.js";
+import auctionsRoutes from "./modules/auctions/routes.js";
+import tendersRoutes from "./modules/tenders/routes.js";
+import verificationRoutes from "./modules/verification/routes.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -53,6 +59,7 @@ export async function buildApp() {
   registerErrorHandler(app);
 
   app.get("/health", async () => ({ ok: true, ts: new Date().toISOString() }));
+  app.get("/ready", async (_req, reply) => { try { await Promise.race([sql`SELECT 1`.execute(db), new Promise((_, rej) => setTimeout(() => rej(new Error("db_timeout")), 2000))]); return { ok: true }; } catch (e) { reply.code(503); return { ok: false, error: (e as Error).message }; } });
 
   await app.register(async (api) => {
     await api.register(authRoutes); await api.register(regionsRoutes); await api.register(categoriesRoutes); await api.register(mediaRoutes);
@@ -60,6 +67,7 @@ export async function buildApp() {
     await api.register(callsRoutes); await api.register(reportsRoutes); await api.register(moderationRoutes); await api.register(adminRoutes);
     await api.register(notificationsRoutes); await api.register(dealsRoutes); await api.register(priceIndexRoutes); await api.register(cmsRoutes);
     await api.register(poolsRoutes); await api.register(transportRoutes); await api.register(vetRoutes);
+    await api.register(paymentsRoutes); await api.register(auctionsRoutes); await api.register(tendersRoutes); await api.register(verificationRoutes);
   }, { prefix: "/api/v1" });
 
   return app;

@@ -52,6 +52,23 @@ export async function settlePoolDeadlines(now = new Date()) {
   return { expired: due.length, refunded };
 }
 
+
+/** Доля оплачена (вебхук провайдера): условно переводим долю в paid, при заполнении сбора — pool в filled и уведомляем участников. */
+export async function markSharePaid(shareId: string, paymentId: string) {
+  const result = await db.transaction().execute(async (trx) => {
+    const share = await trx.selectFrom("pool_shares").select(["pool_id", "status"]).where("id", "=", shareId).executeTakeFirst();
+    if (!share) return null;
+    const { pool } = await loadPool(share.pool_id, trx as any, true);
+    const upd = await trx.updateTable("pool_shares").set({ status: "paid", paid_at: new Date(), payment_id: paymentId }).where("id", "=", shareId).where("status", "=", "reserved").executeTakeFirst();
+    if (!upd.numUpdatedRows) return null;
+    const s = pool.shares.find((x) => x.id === shareId)!; s.status = "paid";
+    const free = unitsFree(pool);
+    if (free === 0 && pool.status === "open") { await trx.updateTable("pools").set({ status: "filled" }).where("id", "=", share.pool_id).execute(); return { poolId: share.pool_id, notifyIds: [...new Set(pool.shares.filter((x) => x.status === "paid").map((x) => x.userId))] }; }
+    return { poolId: share.pool_id, notifyIds: [] as string[] };
+  });
+  for (const uid of result?.notifyIds ?? []) await notify({ userId: uid, type: "deal", titleRu: "Складчина собрана! Скоро забой и доставка", titleKk: "Соғым жиналды! Жақында сою және жеткізу", data: { poolId: result!.poolId } });
+}
+
 export default async function poolsRoutes(app: FastifyInstance) {
   app.get("/pools", async (req) => {
     const region = (req.query as any).region as string | undefined;
@@ -92,7 +109,7 @@ export default async function poolsRoutes(app: FastifyInstance) {
       const existing = await trx.selectFrom("payments").select("id").where("pool_share_id", "=", shareId).where("status", "in", ["pending", "succeeded"]).executeTakeFirst();
       if (existing) throw new AppError(409, "already_paid");
       const res = await payments.createPayment({ amountKzt: s.amountKzt, orderId: shareId, description: "MalSatu pool share", returnUrl: "" });
-      const pay = await trx.insertInto("payments").values({ pool_share_id: shareId, user_id: req.user!.id, provider: "mock", provider_ref: res.providerRef, amount_kzt: s.amountKzt, status: res.status }).returningAll().executeTakeFirstOrThrow();
+      const pay = await trx.insertInto("payments").values({ pool_share_id: shareId, user_id: req.user!.id, provider: payments.name, provider_ref: res.providerRef, amount_kzt: s.amountKzt, status: res.status }).returningAll().executeTakeFirstOrThrow();
       if (res.status !== "succeeded") return { payment: pay, payUrl: res.payUrl, poolStatus: pool.status, notifyIds: [] as string[] };
       payShare(pool, shareId);
       await trx.updateTable("pool_shares").set({ status: "paid", paid_at: new Date(), payment_id: pay.id }).where("id", "=", shareId).execute();

@@ -125,3 +125,27 @@ export const DealCreateSchema = z.object({
   offerId: z.string().uuid().optional(), deliveryOption: DeliveryOptionSchema.default("pickup"), deliveryAddressId: z.string().uuid().optional(),
 });
 export const DealActionSchema = z.object({ action: z.enum(["start_preparing", "ship", "arrive", "confirm", "cancel", "open_dispute"]), evidenceMediaIds: z.array(z.string().uuid()).optional(), comment: z.string().max(2000).optional() });
+
+// ---- Аукционы, тендеры, верификация (v3)
+export const AuctionCreateSchema = z.object({
+  listingId: z.string().uuid(), startPriceKzt: z.number().int().positive().max(1_000_000_000_000), bidStepKzt: z.number().int().positive().max(1_000_000_000),
+  depositKzt: z.number().int().min(0).max(1_000_000_000).default(0), startsAt: z.string().datetime(), endsAt: z.string().datetime(), extensionMinutes: z.number().int().min(0).max(60).default(5), streamUrl: z.string().url().max(500).optional(),
+}).refine((a) => new Date(a.endsAt).getTime() - new Date(a.startsAt).getTime() >= 30 * 60_000, { message: "auction_too_short", path: ["endsAt"] });
+export const AuctionBidSchema = z.object({ amountKzt: z.number().int().positive().max(1_000_000_000_000), maxAutoKzt: z.number().int().positive().max(1_000_000_000_000).optional() }).refine((b) => !b.maxAutoKzt || b.maxAutoKzt >= b.amountKzt, { message: "max_auto_below_bid", path: ["maxAutoKzt"] });
+
+export const TenderCreateSchema = z.object({
+  titleRu: z.string().min(5).max(200), titleKk: z.string().min(5).max(200).optional(), categoryCode: z.string().min(2).max(64), quantity: z.number().int().positive().max(1_000_000),
+  specs: z.record(z.string().max(64), z.union([z.string().max(500), z.number(), z.boolean()])).default({}), regionCodes: z.array(z.string().max(16)).max(20).default([]), deadline: z.string().datetime(),
+}).refine((t) => new Date(t.deadline).getTime() > Date.now() + 60 * 60_000, { message: "deadline_too_soon", path: ["deadline"] });
+export const TenderBidSchema = z.object({ priceKzt: z.number().int().positive().max(1_000_000_000_000), quantity: z.number().int().positive().max(1_000_000), comment: z.string().max(1000).optional(), listingId: z.string().uuid().optional() });
+
+export const VerificationRequestSchema = z.object({
+  level: z.union([z.literal(2), z.literal(3), z.literal(4)]),
+  iinBin: z.string().regex(/^\d{12}$/).optional(),
+  documentMediaIds: z.array(z.string().uuid()).max(10).default([]),
+  comment: z.string().max(1000).optional(),
+}).superRefine((v, ctx) => {
+  if (v.level === 2 && !v.iinBin) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "iin_bin_required", path: ["iinBin"] });
+  if (v.level >= 3 && v.documentMediaIds.length === 0) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "documents_required", path: ["documentMediaIds"] });
+});
+export const VerificationDecisionSchema = z.object({ decision: z.enum(["approve", "reject"]), comment: z.string().max(1000).optional() });

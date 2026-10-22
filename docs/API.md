@@ -15,6 +15,11 @@
 | Жалобы | `POST /reports` |
 | Модерация | `GET /moderation/queue`, `POST /moderation/queue/:id/decide`, `POST /moderation/documents/:id/verify`, `POST /moderation/tags/:id/verify`, `GET /moderation/reports`, `POST /moderation/reports/:id/resolve`, `GET /moderation/log` |
 | Сделки | `POST /deals`, `GET /deals?role=`, `GET /deals/:id`, `POST /deals/:id/pay`, `POST /deals/:id/action`, `POST /deals/:id/review`, `POST /reviews/:id/reply`, `GET /disputes`, `POST /disputes/:id/messages`, `POST /disputes/:id/resolve` |
+| Платежи | `POST /payments/webhook` (подпись `x-signature` = HMAC-SHA256 сырого тела; идемпотентно), `GET /payments/:id` |
+| Аукционы (v3) | `GET /auctions?status&region`, `GET /auctions/:id`, `POST /auctions` (владелец активного объявления, L≥2), `POST /auctions/:id/deposit`, `POST /auctions/:id/bid` (`amountKzt`, `maxAutoKzt`), `POST /auctions/:id/cancel` |
+| Тендеры (v3) | `GET /tenders?status&region&category`, `GET /tenders/:id`, `POST /tenders` (L≥2), `POST /tenders/:id/bids` (одно на продавца, L≥2), `POST /tenders/:id/bids/withdraw`, `POST /tenders/:id/award` (`bidId`, `mode`) → сделка, если к предложению приложено объявление, `POST /tenders/:id/cancel` |
+| Верификация | `GET /verification/me`, `POST /verification/requests` (`level` 2–4, `iinBin` с контрольной суммой, `documentMediaIds`), `GET /moderation/verification`, `POST /moderation/verification/:id/decide` |
+| Служебные | `GET /health` (liveness), `GET /ready` (readiness: `SELECT 1` ≤ 2 с) |
 | Индекс цен | `GET /price-index`, `GET /price-index/history`, `GET /price-index/compare` |
 | Складчина | `GET /pools`, `GET /pools/:id`, `POST /pools`, `POST /pools/:id/reserve`, `POST /pools/:id/shares/:shareId/pay`, `POST /pools/:id/status`, `GET /users/me/pool-shares` |
 | Перевозки | `GET /transport/estimate`, `GET/POST /transport/requests`, `GET/POST /transport/requests/:id/bids`, `POST /transport/requests/:id/choose`, `POST /transport/requests/:id/track`, `POST /transport/requests/:id/status`, `PUT /carrier/profile` |

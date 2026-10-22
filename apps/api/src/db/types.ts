@@ -147,6 +147,7 @@ export interface Database {
   promotions: PromotionsTable; tariffs: TariffsTable; promo_codes: PromoCodesTable; cms_pages: CmsPagesTable; banners: BannersTable; audit_log: AuditLogTable; analytics_events: AnalyticsEventsTable; price_index_daily: PriceIndexDailyTable;
   carrier_profiles: CarrierProfilesTable; transport_requests: TransportRequestsTable; transport_bids: TransportBidsTable; vet_requests: VetRequestsTable; pools: PoolsTable; pool_shares: PoolSharesTable;
   delivery_addresses: DeliveryAddressesTable; herd_animals: HerdAnimalsTable; vet_profiles: VetProfilesTable; transport_tracking: TransportTrackingTable;
+  auctions: AuctionsTable; auction_bids: AuctionBidsTable; auction_deposits: AuctionDepositsTable; tenders: TendersTable; tender_bids: TenderBidsTable; verification_requests: VerificationRequestsTable;
 }
 
 export type User = Selectable<UsersTable>;

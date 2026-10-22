@@ -24,7 +24,7 @@ export interface DealRepo {
   /** Атомарно уменьшает количество; false, если товара уже не хватает (гонка покупателей). */
   reduceListingQuantity(listingId: string, qty: number): Promise<boolean>;
   restoreListingQuantity(listingId: string, qty: number): Promise<void>;
-  createPayment(p: { dealId: string; userId: string; amountKzt: number }): Promise<{ id: string; status: "pending" | "succeeded" }>;
+  createPayment(p: { dealId: string; userId: string; amountKzt: number }): Promise<{ id: string; status: "pending" | "succeeded"; payUrl?: string }>;
   refundPayment(dealId: string, amountKzt: number): Promise<void>;
   createPayout(p: { userId: string; dealId: string; amountKzt: number }): Promise<void>;
   openDispute(p: { dealId: string; openedBy: string; reason: string; evidence: string[] }): Promise<void>;
@@ -74,14 +74,21 @@ export class DealsService {
   }
 
   /** Инициировать оплату (escrow/reservation). mock-провайдер отвечает succeeded сразу → переводим в paid. */
-  async pay(dealId: string, buyerId: string): Promise<DealRecord> {
+  async pay(dealId: string, buyerId: string): Promise<{ deal: DealRecord; payUrl?: string }> {
     const d = await this.getOrThrow(dealId);
     if (d.buyerId !== buyerId) throw new DealError("forbidden");
     if (d.mode === "direct") throw new DealError("direct_no_payment");
     if (d.status !== "created") throw new DealError("already_paid");
     const p = await this.repo.createPayment({ dealId, userId: buyerId, amountKzt: d.prepaymentKzt });
-    if (p.status === "succeeded") return this.act(dealId, "pay", "system", null);
-    return d;
+    if (p.status === "succeeded") return { deal: await this.act(dealId, "pay", "system", null) };
+    return { deal: d, payUrl: p.payUrl }; // реальный провайдер: покупатель уходит на страницу оплаты, статус придёт вебхуком
+  }
+
+  /** Подтверждение оплаты вебхуком провайдера (после условного перевода платежа в succeeded). */
+  async markPaid(dealId: string): Promise<DealRecord> {
+    const d = await this.getOrThrow(dealId);
+    if (d.status !== "created") return d; // уже обработано
+    return this.act(dealId, "pay", "system", null);
   }
 
   async act(dealId: string, action: DealAction, actor: DealActor, actorId: string | null, opts: { comment?: string; evidence?: string[]; now?: Date; refundKzt?: number } = {}): Promise<DealRecord> {

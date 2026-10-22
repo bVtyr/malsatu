@@ -47,6 +47,8 @@ export default async function Home({ params }: { params: Promise<{ locale: Local
       <section className="season" data-reveal>
         <Link href={href("/kurban")} className="is-green"><b>{t.home.kurban}</b><span>{locale === "kk" ? "Қошқарды мерзімге дейін броньдау" : "Бараны с бронью к дате"}</span></Link>
         <Link href={href("/sogym")}><b>{t.home.sogym}</b><span>{locale === "kk" ? "Ұшаны ½, ¼, ⅛ үлеспен" : "Туша вскладчину по ½, ¼, ⅛"}</span></Link>
+        <Link href={href("/auctions")} className="is-ink"><b>{t.auction.title}</b><span>{locale === "kk" ? "Асыл тұқымды мал: ұсыныс қадамымен" : "Племенной скот: ставки с шагом"}</span></Link>
+        <Link href={href("/tenders")}><b>{t.tender.title}</b><span>{locale === "kk" ? "Комбинаттар мен мейрамханалар сұранысы" : "Запросы комбинатов и ресторанов"}</span></Link>
       </section>
 
       <NearbyListings />

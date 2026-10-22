@@ -74,6 +74,9 @@
 .season a.is-acc span { color: var(--ink); }
 .season a.is-green { background: var(--green); color: var(--on-green); border-color: var(--green); }
 .season a.is-green span { color: var(--on-green); }
+.season a.is-ink { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.season a.is-ink span { color: var(--paper); opacity: 0.8; }
+.line.is-mine .what, .line.is-mine .val { font-weight: 700; color: var(--green); }
 .price-rows .line { padding-block: 8px; }
 .admin-stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
 @media (min-width: 48em) { .admin-stats { grid-template-columns: repeat(4, 1fr); } }

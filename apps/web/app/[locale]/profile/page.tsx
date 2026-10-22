@@ -8,6 +8,10 @@ import { useAuth, hasRole } from "@/lib/auth";
 import { listDrafts, syncDrafts, type Draft } from "@/lib/offline";
 import { submitDraft } from "@/components/wizard/submit";
 import { ListingCard, VerifiedMark } from "@/components/ListingCard";
+import { classifyIinBin } from "@malsatu/shared";
+import { PhotoCapture, type Shot } from "@/components/PhotoCapture";
+import { uploadMedia } from "@/lib/api";
+import { toast } from "@/components/Motion";
 
 /** Кабинет: объявления (с офлайн-черновиками и статистикой), сделки, офферы, сохранённые поиски, складчины, настройки. */
 function ProfileInner() {
@@ -27,12 +31,12 @@ function ProfileInner() {
   const [soldFor, setSoldFor] = useState<{ id: string; qty: string } | null>(null);
   const setStatus = async (id: string, status: string, soldQty?: number) => { await api(`/listings/${id}/status`, { body: { status, soldQty } }); setSoldFor(null); api("/users/me/listings").then((r) => setListings(r.items)); };
   const act = async (id: string, action: string) => { await api(`/offers/${id}`, { body: { action } }); api("/offers").then((r) => setOffers(r.items)); };
-  const tabs = [["listings", t.admin.listings], ["deals", t.admin.deals], ["offers", t.offer.title], ["saved", t.filters.saveSearch], ["sogym", t.home.sogym], ["settings", locale === "kk" ? "Баптаулар" : "Настройки"]];
+  const tabs = [["listings", t.admin.listings], ["deals", t.admin.deals], ["offers", t.offer.title], ["saved", t.filters.saveSearch], ["sogym", t.home.sogym], ["verify", t.verify.title], ["settings", locale === "kk" ? "Баптаулар" : "Настройки"]];
   return (
     <>
       <div className="profile-head"><span className="avatar">{(user.farmName ?? user.displayName ?? user.phone)[0]}</span><span><b>{user.farmName ?? user.displayName ?? user.phone}</b><span>{(t.verification as any)[`level${user.verificationLevel}`]}</span></span></div>
       <div className="stat-row"><span><b>{user.dealsCount}</b> {t.admin.deals.toLowerCase()}</span><span><b>{user.rating || "—"}</b> {locale === "kk" ? "рейтинг" : "рейтинг"}</span><span><b>{user.trustScore}</b> {locale === "kk" ? "сенім" : "доверие"}</span><button onClick={async () => { await logout(); router.push(href("/")); }} className="muted-link">{t.auth.logout}</button></div>
-      {user.verificationLevel < 2 && <div className="panel panel--surface small">{locale === "kk" ? "ЖСН/БСН растаңыз: сенім деңгейі мен лимиттер өседі." : "Подтвердите ИИН/БИН: вырастут уровень доверия и лимиты объявлений."}</div>}
+      {user.verificationLevel < 2 && tab !== "verify" && <Link href={href("/profile?tab=verify")} className="panel panel--surface small" style={{ display: "block" }}>{locale === "kk" ? "ЖСН/БСН растаңыз: сенім деңгейі мен лимиттер өседі." : "Подтвердите ИИН/БИН: вырастут уровень доверия и лимиты объявлений."} →</Link>}
       <div className="chips chips--scroll">{tabs.map(([k, label]) => <Link key={k} href={href(`/profile?tab=${k}`)} className="chip" aria-current={tab === k ? "page" : undefined}>{label}</Link>)}</div>
 
       {tab === "listings" && <div className="stack">
@@ -63,6 +67,7 @@ function ProfileInner() {
 
       {tab === "sogym" && <div className="list-rows">{shares.map((s) => <Link key={s.id} href={href(`/sogym?pool=${s.pool_id}`)} className="rowline"><span style={{ flex: 1 }}><b style={{ fontWeight: 500 }}>{lf(s, "title")}</b><br /><span className="sub">{s.units}/8, {money(s.amount_kzt)}, {s.status}, {s.pool_status}</span></span></Link>)}{shares.length === 0 && <div className="panel panel--surface">{t.common.nothingFound}</div>}</div>}
 
+      {tab === "verify" && <Verification onChanged={refresh} />}
       {tab === "settings" && <Settings onSaved={refresh} />}
       {hasRole(user, "carrier") && <Link href={href("/transport")} className="btn btn--white btn--wide">{t.listing.platformCarrier}</Link>}
     </>
@@ -90,3 +95,37 @@ function Settings({ onSaved }: { onSaved: () => Promise<void> }) {
   </form>;
 }
 export default function ProfilePage() { return <Suspense><ProfileInner /></Suspense>; }
+
+/** Верификация: текущий уровень, следующий шаг (ИИН/БИН с проверкой контрольной суммы на клиенте, документы фото/PDF), история заявок. */
+function Verification({ onChanged }: { onChanged: () => Promise<void> }) {
+  const { t, date, locale } = useI18n();
+  const [info, setInfo] = useState<any>(null); const [iin, setIin] = useState(""); const [shots, setShots] = useState<Shot[]>([]); const [comment, setComment] = useState(""); const [busy, setBusy] = useState(false);
+  const load = () => api("/verification/me").then(setInfo);
+  useEffect(() => { load(); }, []);
+  if (!info) return <p>{t.common.loading}</p>;
+  const next = info.level + 1; const pending = info.requests.find((r: any) => r.status === "pending");
+  const iinOk = iin.length === 12 && !!classifyIinBin(iin);
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setBusy(true);
+    try {
+      const ids: string[] = []; for (const s of shots) { const r = await uploadMedia(s.blob, s.name); ids.push(r.media.id); }
+      await api("/verification/requests", { body: { level: next, iinBin: next === 2 ? iin : undefined, documentMediaIds: ids, comment: comment || undefined } });
+      toast(t.verify.pending); setShots([]); setComment(""); await load(); await onChanged();
+    } catch (e: any) { toast(e.code === "iin_bin_invalid" ? t.verify.invalidIin : e.code === "iin_bin_already_used" ? (locale === "kk" ? "Бұл ЖСН/БСН басқа аккаунтта расталған" : "Этот ИИН/БИН уже подтверждён в другом аккаунте") : e.code); }
+    finally { setBusy(false); }
+  };
+  return <div className="stack">
+    <div className="panel panel--surface"><b>{(t.verification as any)[`level${info.level}`]}</b>{info.iinBinMasked && <p className="small">{t.verify.iinBin}: {info.iinBinMasked}, {date(info.iinBinVerifiedAt)}</p>}
+      <div className="steps" style={{ marginTop: "0.6rem" }} aria-hidden="true">{[1, 2, 3, 4].map((n) => <span key={n} className={n <= info.level ? "is-done" : n === next ? "is-now" : ""} />)}</div></div>
+    {pending && <div className="panel panel--yellow"><b>{t.verify.pending}</b><p className="small">{(t.verify as any)[`level${pending.level}`]}, {date(pending.created_at)}</p></div>}
+    {!pending && next <= 4 && <form className="panel panel--surface stack" onSubmit={submit}>
+      <b>{(t.verify as any)[`level${next}`]}</b>
+      {next === 2 && <label><span className="label">{t.verify.iinBin}</span><input className="field num" inputMode="numeric" pattern="[0-9]{12}" maxLength={12} value={iin} onChange={(e) => setIin(e.target.value.replace(/\D/g, ""))} required aria-invalid={iin.length === 12 && !iinOk} />{iin.length === 12 && !iinOk && <span className="small text-red">{t.verify.invalidIin}</span>}</label>}
+      {next >= 3 && <><span className="label">{t.verify.docs}</span><PhotoCapture items={shots} onChange={setShots} max={10} /></>}
+      {next === 4 && <p className="small">{locale === "kk" ? "Модератор бейнеқоңырау немесе шығу уақытын келіседі. Байланыс әдісін көрсетіңіз." : "Модератор согласует видеозвонок или выезд. Укажите удобный способ связи."}</p>}
+      <label><span className="label">{t.moderation.comment}</span><textarea className="field" value={comment} onChange={(e) => setComment(e.target.value)} /></label>
+      <button className="btn btn--wide" disabled={busy || (next === 2 && !iinOk) || (next >= 3 && shots.length === 0)}>{t.verify.request}</button>
+    </form>}
+    {info.requests.filter((r: any) => r.status !== "pending").map((r: any) => <div key={r.id} className="rowline"><span style={{ flex: 1 }}>{(t.verify as any)[`level${r.level}`]}<br /><span className="sub">{date(r.resolved_at)}{r.review_comment ? `: ${r.review_comment}` : ""}</span></span><span className={`mark ${r.status === "approved" ? "mark--green" : "mark--red"}`}>{(t.verify as any)[r.status]}</span></div>)}
+  </div>;
+}
